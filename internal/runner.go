@@ -1,4 +1,4 @@
-package gin
+package internal
 
 import (
 	"io"
@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// Runner interface
 type Runner interface {
 	Run() (*exec.Cmd, error)
 	Info() (os.FileInfo, error)

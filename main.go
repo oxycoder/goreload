@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/acoshift/goreload/lib"
+	"github.com/acoshift/goreload/internal"
 	shellwords "github.com/mattn/go-shellwords"
 	"gopkg.in/urfave/cli.v1"
 
@@ -27,7 +27,7 @@ var (
 	colorGreen    = string([]byte{27, 91, 57, 55, 59, 51, 50, 59, 49, 109})
 	colorRed      = string([]byte{27, 91, 57, 55, 59, 51, 49, 59, 49, 109})
 	colorReset    = string([]byte{27, 91, 48, 109})
-	notifier      = notificator.New(notificator.Options{AppName: "Goreload Build"})
+	notifier      = notificator.New(notificator.Options{AppName: "Go Reload Build"})
 	notifications = false
 )
 
@@ -35,89 +35,65 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "goreload"
 	app.Usage = "A live reload utility for Go web applications."
-	app.Action = MainAction
+	app.Action = mainAction
 	app.Flags = []cli.Flag{
-		cli.IntFlag{
-			Name:   "port,p",
-			Value:  3000,
-			EnvVar: "GIN_PORT",
-			Usage:  "port for the proxy server",
-		},
-		cli.IntFlag{
-			Name:   "appPort,a",
-			Value:  3001,
-			EnvVar: "BIN_APP_PORT",
-			Usage:  "port for the Go web server",
+		cli.StringFlag{
+			Name:  "bin,b",
+			Value: ".goreload",
+			Usage: "name of generated binary file",
 		},
 		cli.StringFlag{
-			Name:   "bin,b",
-			Value:  "gin-bin",
-			EnvVar: "GIN_BIN",
-			Usage:  "name of generated binary file",
+			Name:  "path,t",
+			Value: ".",
+			Usage: "Path to watch files from",
 		},
 		cli.StringFlag{
-			Name:   "path,t",
-			Value:  ".",
-			EnvVar: "GIN_PATH",
-			Usage:  "Path to watch files from",
-		},
-		cli.StringFlag{
-			Name:   "build,d",
-			Value:  "",
-			EnvVar: "GIN_BUILD",
-			Usage:  "Path to build files from (defaults to same value as --path)",
+			Name:  "build,d",
+			Value: "",
+			Usage: "Path to build files from (defaults to same value as --path)",
 		},
 		cli.StringSliceFlag{
-			Name:   "excludeDir,x",
-			Value:  &cli.StringSlice{},
-			EnvVar: "GIN_EXCLUDE_DIR",
-			Usage:  "Relative directories to exclude",
+			Name:  "excludeDir,x",
+			Value: &cli.StringSlice{},
+			Usage: "Relative directories to exclude",
 		},
 		cli.BoolFlag{
-			Name:   "all",
-			EnvVar: "GIN_ALL",
-			Usage:  "reloads whenever any file changes, as opposed to reloading only on .go file change",
+			Name:  "all",
+			Usage: "reloads whenever any file changes, as opposed to reloading only on .go file change",
 		},
 		cli.BoolFlag{
-			Name:   "godep,g",
-			EnvVar: "GIN_GODEP",
-			Usage:  "use godep when building",
+			Name:  "godep,g",
+			Usage: "use godep when building",
 		},
 		cli.StringFlag{
-			Name:   "buildArgs",
-			EnvVar: "GIN_BUILD_ARGS",
-			Usage:  "Additional go build arguments",
+			Name:  "buildArgs",
+			Usage: "Additional go build arguments",
 		},
 		cli.StringFlag{
-			Name:   "logPrefix",
-			EnvVar: "GIN_LOG_PREFIX",
-			Usage:  "Log prefix",
-			Value:  "gin",
+			Name:  "logPrefix",
+			Usage: "Log prefix",
+			Value: "goreload",
 		},
 		cli.BoolFlag{
-			Name:   "notifications",
-			EnvVar: "GIN_NOTIFICATIONS",
-			Usage:  "Enables desktop notifications",
+			Name:  "notifications",
+			Usage: "Enables desktop notifications",
 		},
 	}
 	app.Commands = []cli.Command{
 		{
 			Name:      "run",
 			ShortName: "r",
-			Usage:     "Run the gin proxy in the current working directory",
-			Action:    MainAction,
+			Usage:     "Run the goreload",
+			Action:    mainAction,
 		},
 	}
 
 	app.Run(os.Args)
 }
 
-func MainAction(c *cli.Context) {
-	port := c.GlobalInt("port")
+func mainAction(c *cli.Context) {
 	all := c.GlobalBool("all")
 	appPort := strconv.Itoa(c.GlobalInt("appPort"))
-	keyFile := c.GlobalString("keyFile")
-	certFile := c.GlobalString("certFile")
 	logPrefix := c.GlobalString("logPrefix")
 	notifications = c.GlobalBool("notifications")
 
@@ -140,24 +116,9 @@ func MainAction(c *cli.Context) {
 	if buildPath == "" {
 		buildPath = c.GlobalString("path")
 	}
-	builder := gin.NewBuilder(buildPath, c.GlobalString("bin"), c.GlobalBool("godep"), wd, buildArgs)
-	runner := gin.NewRunner(filepath.Join(wd, builder.Binary()), c.Args()...)
+	builder := internal.NewBuilder(buildPath, c.GlobalString("bin"), c.GlobalBool("godep"), wd, buildArgs)
+	runner := internal.NewRunner(filepath.Join(wd, builder.Binary()), c.Args()...)
 	runner.SetWriter(os.Stdout)
-	proxy := gin.NewProxy(builder, runner)
-
-	config := &gin.Config{
-		Port:     port,
-		ProxyTo:  "http://localhost:" + appPort,
-		KeyFile:  keyFile,
-		CertFile: certFile,
-	}
-
-	err = proxy.Run(config)
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	logger.Printf("Listening on port %d\n", port)
 
 	shutdown(runner)
 
@@ -171,7 +132,7 @@ func MainAction(c *cli.Context) {
 	})
 }
 
-func build(builder gin.Builder, runner gin.Runner, logger *log.Logger) {
+func build(builder internal.Builder, runner internal.Runner, logger *log.Logger) {
 	logger.Println("Building...")
 
 	if notifications {
@@ -234,7 +195,7 @@ func scanChanges(watchPath string, excludeDirs []string, allFiles bool, cb scanC
 	}
 }
 
-func shutdown(runner gin.Runner) {
+func shutdown(runner internal.Runner) {
 	c := make(chan os.Signal, 2)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {

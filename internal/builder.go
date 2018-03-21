@@ -1,4 +1,4 @@
-package gin
+package internal
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// Builder interface
 type Builder interface {
 	Build() error
 	Binary() string
@@ -23,6 +24,7 @@ type builder struct {
 	buildArgs []string
 }
 
+// NewBuilder creates new builder
 func NewBuilder(dir string, bin string, useGodep bool, wd string, buildArgs []string) Builder {
 	if len(bin) == 0 {
 		bin = "bin"
