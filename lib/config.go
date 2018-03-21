@@ -7,10 +7,8 @@ import (
 )
 
 type Config struct {
-	Port     int    `json:"port"`
-	ProxyTo  string `json:"proxy_to"`
-	KeyFile  string `json:"key_file"`
-	CertFile string `json:"cert_file"`
+	Port    int    `json:"port"`
+	ProxyTo string `json:"proxy_to"`
 }
 
 func LoadConfig(path string) (*Config, error) {

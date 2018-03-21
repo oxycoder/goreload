@@ -1,7 +1,6 @@
 package gin
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -38,23 +37,9 @@ func (p *Proxy) Run(config *Config) error {
 
 	server := http.Server{Handler: http.HandlerFunc(p.defaultHandler)}
 
-	if config.CertFile != "" && config.KeyFile != "" {
-		cer, err := tls.LoadX509KeyPair(config.CertFile, config.KeyFile)
-		if err != nil {
-			return err
-		}
-
-		server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
-
-		p.listener, err = tls.Listen("tcp", fmt.Sprintf(":%d", config.Port), server.TLSConfig)
-		if err != nil {
-			return err
-		}
-	} else {
-		p.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", config.Port))
-		if err != nil {
-			return err
-		}
+	p.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", config.Port))
+	if err != nil {
+		return err
 	}
 
 	go server.Serve(p.listener)

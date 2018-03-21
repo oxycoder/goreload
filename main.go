@@ -89,16 +89,6 @@ func main() {
 			Usage:  "Additional go build arguments",
 		},
 		cli.StringFlag{
-			Name:   "certFile",
-			EnvVar: "GIN_CERT_FILE",
-			Usage:  "TLS Certificate",
-		},
-		cli.StringFlag{
-			Name:   "keyFile",
-			EnvVar: "GIN_KEY_FILE",
-			Usage:  "TLS Certificate Key",
-		},
-		cli.StringFlag{
 			Name:   "logPrefix",
 			EnvVar: "GIN_LOG_PREFIX",
 			Usage:  "Log prefix",
@@ -116,12 +106,6 @@ func main() {
 			ShortName: "r",
 			Usage:     "Run the gin proxy in the current working directory",
 			Action:    MainAction,
-		},
-		{
-			Name:      "env",
-			ShortName: "e",
-			Usage:     "Display environment variables set by the .env file",
-			Action:    EnvAction,
 		},
 	}
 
@@ -185,11 +169,6 @@ func MainAction(c *cli.Context) {
 		runner.Kill()
 		build(builder, runner, logger)
 	})
-}
-
-func EnvAction(c *cli.Context) {
-	logPrefix := c.GlobalString("logPrefix")
-	logger.SetPrefix(fmt.Sprintf("[%s] ", logPrefix))
 }
 
 func build(builder gin.Builder, runner gin.Runner, logger *log.Logger) {
