@@ -46,12 +46,12 @@ func (p *Proxy) Run(config *Config) error {
 
 		server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
 
-		p.listener, err = tls.Listen("tcp", fmt.Sprintf("%s:%d", config.Laddr, config.Port), server.TLSConfig)
+		p.listener, err = tls.Listen("tcp", fmt.Sprintf(":%d", config.Port), server.TLSConfig)
 		if err != nil {
 			return err
 		}
 	} else {
-		p.listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", config.Laddr, config.Port))
+		p.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", config.Port))
 		if err != nil {
 			return err
 		}
@@ -84,7 +84,6 @@ func proxyWebsocket(w http.ResponseWriter, r *http.Request, host *url.URL) {
 	d, err := net.Dial("tcp", host.Host)
 	if err != nil {
 		http.Error(w, "Error contacting backend server.", 500)
-		fmt.Errorf("Error dialing websocket backend %s: %v", host, err)
 		return
 	}
 	hj, ok := w.(http.Hijacker)
@@ -94,7 +93,6 @@ func proxyWebsocket(w http.ResponseWriter, r *http.Request, host *url.URL) {
 	}
 	nc, _, err := hj.Hijack()
 	if err != nil {
-		fmt.Errorf("Hijack error: %v", err)
 		return
 	}
 	defer nc.Close()
@@ -102,7 +100,6 @@ func proxyWebsocket(w http.ResponseWriter, r *http.Request, host *url.URL) {
 
 	err = r.Write(d)
 	if err != nil {
-		fmt.Errorf("Error copying request to target: %v", err)
 		return
 	}
 

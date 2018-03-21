@@ -46,10 +46,8 @@ func (r *runner) Run() (*exec.Cmd, error) {
 		}
 		time.Sleep(250 * time.Millisecond)
 		return r.command, err
-	} else {
-		return r.command, nil
 	}
-
+	return r.command, nil
 }
 
 func (r *runner) Info() (os.FileInfo, error) {
@@ -124,7 +122,6 @@ func (r *runner) needsRefresh() bool {
 	info, err := r.Info()
 	if err != nil {
 		return false
-	} else {
-		return info.ModTime().After(r.starttime)
 	}
+	return info.ModTime().After(r.starttime)
 }

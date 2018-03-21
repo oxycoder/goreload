@@ -4,12 +4,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/codegangsta/envy/lib"
-	"github.com/codegangsta/gin/lib"
+	"github.com/acoshift/goreload/lib"
 	shellwords "github.com/mattn/go-shellwords"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/0xAX/notificator"
 	"log"
 	"os"
 	"os/signal"
@@ -18,32 +16,27 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/0xAX/notificator"
 )
 
 var (
 	startTime     = time.Now()
-	logger        = log.New(os.Stdout, "[gin] ", 0)
-	immediate     = false
+	logger        = log.New(os.Stdout, "[goreload] ", 0)
 	buildError    error
 	colorGreen    = string([]byte{27, 91, 57, 55, 59, 51, 50, 59, 49, 109})
 	colorRed      = string([]byte{27, 91, 57, 55, 59, 51, 49, 59, 49, 109})
 	colorReset    = string([]byte{27, 91, 48, 109})
-	notifier      = notificator.New(notificator.Options{AppName: "Gin Build"})
+	notifier      = notificator.New(notificator.Options{AppName: "Goreload Build"})
 	notifications = false
 )
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "gin"
+	app.Name = "goreload"
 	app.Usage = "A live reload utility for Go web applications."
 	app.Action = MainAction
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:   "laddr,l",
-			Value:  "",
-			EnvVar: "GIN_LADDR",
-			Usage:  "listening address for the proxy server",
-		},
 		cli.IntFlag{
 			Name:   "port,p",
 			Value:  3000,
@@ -79,11 +72,6 @@ func main() {
 			Value:  &cli.StringSlice{},
 			EnvVar: "GIN_EXCLUDE_DIR",
 			Usage:  "Relative directories to exclude",
-		},
-		cli.BoolFlag{
-			Name:   "immediate,i",
-			EnvVar: "GIN_IMMEDIATE",
-			Usage:  "run the server immediately after it's built",
 		},
 		cli.BoolFlag{
 			Name:   "all",
@@ -141,20 +129,15 @@ func main() {
 }
 
 func MainAction(c *cli.Context) {
-	laddr := c.GlobalString("laddr")
 	port := c.GlobalInt("port")
 	all := c.GlobalBool("all")
 	appPort := strconv.Itoa(c.GlobalInt("appPort"))
-	immediate = c.GlobalBool("immediate")
 	keyFile := c.GlobalString("keyFile")
 	certFile := c.GlobalString("certFile")
 	logPrefix := c.GlobalString("logPrefix")
 	notifications = c.GlobalBool("notifications")
 
 	logger.SetPrefix(fmt.Sprintf("[%s] ", logPrefix))
-
-	// Bootstrap the environment
-	envy.Bootstrap()
 
 	// Set the PORT env
 	os.Setenv("PORT", appPort)
@@ -179,7 +162,6 @@ func MainAction(c *cli.Context) {
 	proxy := gin.NewProxy(builder, runner)
 
 	config := &gin.Config{
-		Laddr:    laddr,
 		Port:     port,
 		ProxyTo:  "http://localhost:" + appPort,
 		KeyFile:  keyFile,
@@ -191,11 +173,7 @@ func MainAction(c *cli.Context) {
 		logger.Fatal(err)
 	}
 
-	if laddr != "" {
-		logger.Printf("Listening at %s:%d\n", laddr, port)
-	} else {
-		logger.Printf("Listening on port %d\n", port)
-	}
+	logger.Printf("Listening on port %d\n", port)
 
 	shutdown(runner)
 
@@ -212,17 +190,6 @@ func MainAction(c *cli.Context) {
 func EnvAction(c *cli.Context) {
 	logPrefix := c.GlobalString("logPrefix")
 	logger.SetPrefix(fmt.Sprintf("[%s] ", logPrefix))
-
-	// Bootstrap the environment
-	env, err := envy.Bootstrap()
-	if err != nil {
-		logger.Fatalln(err)
-	}
-
-	for k, v := range env {
-		fmt.Printf("%s: %s\n", k, v)
-	}
-
 }
 
 func build(builder gin.Builder, runner gin.Runner, logger *log.Logger) {
@@ -245,9 +212,8 @@ func build(builder gin.Builder, runner gin.Runner, logger *log.Logger) {
 	} else {
 		buildError = nil
 		logger.Printf("%sBuild finished%s\n", colorGreen, colorReset)
-		if immediate {
-			runner.Run()
-		}
+		runner.Run()
+
 		if notifications {
 			if err := notifier.Push("Build Succeded", "Build Finished!", "", notificator.UR_CRITICAL); err != nil {
 				logger.Println("Notification send failed")
