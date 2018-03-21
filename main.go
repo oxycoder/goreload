@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -93,14 +92,10 @@ func main() {
 
 func mainAction(c *cli.Context) {
 	all := c.GlobalBool("all")
-	appPort := strconv.Itoa(c.GlobalInt("appPort"))
 	logPrefix := c.GlobalString("logPrefix")
 	notifications = c.GlobalBool("notifications")
 
 	logger.SetPrefix(fmt.Sprintf("[%s] ", logPrefix))
-
-	// Set the PORT env
-	os.Setenv("PORT", appPort)
 
 	wd, err := os.Getwd()
 	if err != nil {
