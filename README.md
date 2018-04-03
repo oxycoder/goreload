@@ -1,34 +1,21 @@
 # Goreload
 
-========
+`goreload` forks from codegangsta/gin and remove unused features.
 
-`goreload` is a simple command line utility for live-reloading Go web applications.
 Just run `goreload` in your app directory.
 `goreload` will automatically recompile your code when it
 detects a change.
 
-`goreload` adheres to the "silence is golden" principle, so it will only complain
-if there was a compiler error or if you succesfully compile after an error.
-
 ## Installation
 
-Assuming you have a working Go environment and `GOPATH/bin` is in your
-`PATH`, `goreload` is a breeze to install:
-
 ```shell
-go get github.com/acoshift/goreload
-```
-
-Then verify that `goreload` was installed correctly:
-
-```shell
-goreload -h
+go get -u github.com/acoshift/goreload
 ```
 
 ## Basic usage
 
 ```shell
-goreload run main.go
+goreload main.go
 ```
 
 Options
