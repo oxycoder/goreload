@@ -26,7 +26,6 @@ Options
    --build value, -d value       Path to build files from (defaults to same value as --path)
    --excludeDir value, -x value  Relative directories to exclude
    --all                         reloads whenever any file changes, as opposed to reloading only on .go file change
-   --godep, -g                   use godep when building
    --buildArgs value             Additional go build arguments
    --logPrefix value             Setup custom log prefix
    --notifications               enable desktop notifications
