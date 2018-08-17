@@ -26,6 +26,7 @@ type runner struct {
 	starttime time.Time
 }
 
+// NewRunner creates new runner
 func NewRunner(bin string, args ...string) Runner {
 	return &runner{
 		bin:       bin,
