@@ -53,12 +53,10 @@ func (b *builder) Build() error {
 	command := exec.Command(args[0], args[1:]...)
 
 	output, err := command.CombinedOutput()
-	if err != nil {
-		b.errors = err.Error()
-	} else if command.ProcessState.Success() {
+	if command.ProcessState.Success() {
 		b.errors = ""
 	} else {
-		b.errors = string(output)
+		b.errors = string(output) + err.Error()
 	}
 
 	if len(b.errors) > 0 {
