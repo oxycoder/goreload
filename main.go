@@ -106,7 +106,7 @@ func mainAction(c *cli.Context) {
 	build(builder, runner, logger)
 
 	// scan for changes
-	scanChanges(c.GlobalString("path"), c.GlobalStringSlice("excludeDir"), all, func(path string) {
+	scanChanges(c.GlobalString("path"), c.GlobalStringSlice("excludeDir"), all, func() {
 		runner.Kill()
 		build(builder, runner, logger)
 	})
@@ -127,9 +127,7 @@ func build(builder internal.Builder, runner internal.Runner, logger *log.Logger)
 	time.Sleep(100 * time.Millisecond)
 }
 
-type scanCallback func(path string)
-
-func scanChanges(watchPath string, excludeDirs []string, allFiles bool, cb scanCallback) {
+func scanChanges(watchPath string, excludeDirs []string, allFiles bool, cb func()) {
 	for {
 		filepath.Walk(watchPath, func(path string, info os.FileInfo, err error) error {
 			if path == ".git" && info.IsDir() {
@@ -147,7 +145,7 @@ func scanChanges(watchPath string, excludeDirs []string, allFiles bool, cb scanC
 			}
 
 			if (allFiles || filepath.Ext(path) == ".go") && info.ModTime().After(startTime) {
-				cb(path)
+				cb()
 				startTime = time.Now()
 				return errors.New("done")
 			}

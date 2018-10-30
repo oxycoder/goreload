@@ -61,32 +61,40 @@ func (r *runner) SetWriter(writer io.Writer) {
 }
 
 func (r *runner) Kill() error {
-	if r.command != nil && r.command.Process != nil {
-		done := make(chan error)
-		go func() {
-			r.command.Wait()
-			close(done)
-		}()
+	if r.command == nil {
+		return nil
+	}
+	if r.command.Process == nil {
+		return nil
+	}
 
-		//Trying a "soft" kill first
-		if runtime.GOOS == "windows" {
-			if err := r.command.Process.Kill(); err != nil {
-				return err
-			}
-		} else if err := r.command.Process.Signal(os.Interrupt); err != nil {
+	done := make(chan error)
+	go func() {
+		r.command.Wait()
+		close(done)
+	}()
+
+	// trying a "soft" kill first
+	if runtime.GOOS == "windows" {
+		if err := r.command.Process.Kill(); err != nil {
 			return err
 		}
-
-		//Wait for our process to die before we return or hard kill after 3 sec
-		select {
-		case <-time.After(3 * time.Second):
-			if err := r.command.Process.Kill(); err != nil {
-				log.Println("failed to kill: ", err)
-			}
-		case <-done:
+	} else {
+		err := r.command.Process.Signal(os.Interrupt)
+		if err != nil {
+			return err
 		}
-		r.command = nil
 	}
+
+	// wait for our process to die before we return or hard kill after 3 sec
+	select {
+	case <-time.After(3 * time.Second):
+		if err := r.command.Process.Kill(); err != nil {
+			log.Println("failed to kill: ", err)
+		}
+	case <-done:
+	}
+	r.command = nil
 
 	return nil
 }
