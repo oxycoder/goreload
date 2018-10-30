@@ -12,22 +12,16 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
-
-	"github.com/0xAX/notificator"
 )
 
 var (
-	startTime     = time.Now()
-	logger        = log.New(os.Stdout, "[goreload] ", 0)
-	buildError    error
-	colorGreen    = string([]byte{27, 91, 57, 55, 59, 51, 50, 59, 49, 109})
-	colorRed      = string([]byte{27, 91, 57, 55, 59, 51, 49, 59, 49, 109})
-	colorReset    = string([]byte{27, 91, 48, 109})
-	notifier      = notificator.New(notificator.Options{AppName: "Go Reload Build"})
-	notifications = false
+	startTime  = time.Now()
+	logger     = log.New(os.Stdout, "[goreload] ", 0)
+	colorGreen = string([]byte{27, 91, 57, 55, 59, 51, 50, 59, 49, 109})
+	colorRed   = string([]byte{27, 91, 57, 55, 59, 51, 49, 59, 49, 109})
+	colorReset = string([]byte{27, 91, 48, 109})
 )
 
 func main() {
@@ -69,10 +63,6 @@ func main() {
 			Usage: "Log prefix",
 			Value: "goreload",
 		},
-		cli.BoolFlag{
-			Name:  "notifications",
-			Usage: "Enables desktop notifications",
-		},
 	}
 	app.Commands = []cli.Command{
 		{
@@ -89,7 +79,6 @@ func main() {
 func mainAction(c *cli.Context) {
 	all := c.GlobalBool("all")
 	logPrefix := c.GlobalString("logPrefix")
-	notifications = c.GlobalBool("notifications")
 
 	logger.SetPrefix(fmt.Sprintf("[%s] ", logPrefix))
 
@@ -126,30 +115,13 @@ func mainAction(c *cli.Context) {
 func build(builder internal.Builder, runner internal.Runner, logger *log.Logger) {
 	logger.Println("Building...")
 
-	if notifications {
-		notifier.Push("Build Started!", "Building "+builder.Binary()+"...", "", notificator.UR_NORMAL)
-	}
 	err := builder.Build()
 	if err != nil {
-		buildError = err
 		logger.Printf("%sBuild failed%s\n", colorRed, colorReset)
 		fmt.Println(builder.Errors())
-		buildErrors := strings.Split(builder.Errors(), "\n")
-		if notifications {
-			if err := notifier.Push("Build FAILED!", buildErrors[1], "", notificator.UR_CRITICAL); err != nil {
-				logger.Println("Notification send failed")
-			}
-		}
 	} else {
-		buildError = nil
 		logger.Printf("%sBuild finished%s\n", colorGreen, colorReset)
 		runner.Run()
-
-		if notifications {
-			if err := notifier.Push("Build Succeded", "Build Finished!", "", notificator.UR_CRITICAL); err != nil {
-				logger.Println("Notification send failed")
-			}
-		}
 	}
 
 	time.Sleep(100 * time.Millisecond)
