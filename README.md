@@ -28,7 +28,6 @@ Options
    --all                         reloads whenever any file changes, as opposed to reloading only on .go file change
    --buildArgs value             Additional go build arguments
    --logPrefix value             Setup custom log prefix
-   --notifications               enable desktop notifications
    --help, -h                    show help
    --version, -v                 print the version
 ```
