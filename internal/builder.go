@@ -36,6 +36,12 @@ func NewBuilder(dir string, bin string, wd string, buildArgs []string) Builder {
 		}
 	}
 
+	if dir == "" {
+		dir = "."
+	} else {
+		dir = filepath.Join(wd, dir)
+	}
+
 	return &builder{dir: dir, binary: bin, wd: wd, buildArgs: buildArgs}
 }
 
@@ -49,6 +55,7 @@ func (b *builder) Errors() string {
 
 func (b *builder) Build() error {
 	args := append([]string{"go", "build", "-o", filepath.Join(b.wd, b.binary)}, b.buildArgs...)
+	args = append(args, b.dir)
 
 	command := exec.Command(args[0], args[1:]...)
 
