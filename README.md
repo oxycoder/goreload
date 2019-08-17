@@ -6,26 +6,35 @@ Just run `goreload` in your app directory.
 `goreload` will automatically recompile your code when it
 detects a change.
 
+goreload using fsnotify (Cross-platform file system notifications for Go)
+
 ## Installation
 
 ```shell
-go get -u github.com/acoshift/goreload
+go get github.com/oxycoder/goreload
 ```
 
 ## Basic usage
 
 ```shell
-goreload main.go
+// auto look for main.go
+goreload
+// run abc.go file
+goreload abc.go
+// watch .tmpl and .css extension, .go is default
+goreload --ext .tmpl --ext .scss
+// store binary file in path
+goreload --bin ./bin/myproject
 ```
 
 Options
 
 ```txt
-   --bin value, -b value         name of generated binary file (default: ".goreload")
+   --bin value, -b value         Path to generated binary file (default: "./bin/goreload")
    --path value, -t value        Path to watch files from (default: ".")
    --build value, -d value       Path to build files from (defaults to same value as --path)
+   --ext value, -e value         File extention to watch changes (default: .go)
    --excludeDir value, -x value  Relative directories to exclude
-   --all                         reloads whenever any file changes, as opposed to reloading only on .go file change
    --buildArgs value             Additional go build arguments
    --logPrefix value             Setup custom log prefix
    --help, -h                    show help

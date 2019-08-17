@@ -1,11 +1,14 @@
 package main
 
 import (
-	"errors"
 	"fmt"
+	"io/ioutil"
+	"path"
+	"strings"
 
-	"github.com/acoshift/goreload/internal"
+	"github.com/fsnotify/fsnotify"
 	shellwords "github.com/mattn/go-shellwords"
+	"github.com/oxycoder/goreload/internal"
 	"gopkg.in/urfave/cli.v1"
 
 	"log"
@@ -32,8 +35,13 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "bin,b",
-			Value: ".goreload",
-			Usage: "name of generated binary file",
+			Value: "./bin/goreload",
+			Usage: "path to generated binary file",
+		},
+		cli.StringSliceFlag{
+			Name:  "ext,e",
+			Value: &cli.StringSlice{".go"},
+			Usage: "File extention to watch changes",
 		},
 		cli.StringFlag{
 			Name:  "path,t",
@@ -49,10 +57,6 @@ func main() {
 			Name:  "excludeDir,x",
 			Value: &cli.StringSlice{},
 			Usage: "Relative directories to exclude",
-		},
-		cli.BoolFlag{
-			Name:  "all",
-			Usage: "reloads whenever any file changes, as opposed to reloading only on .go file change",
 		},
 		cli.StringFlag{
 			Name:  "buildArgs",
@@ -77,7 +81,7 @@ func main() {
 }
 
 func mainAction(c *cli.Context) {
-	all := c.GlobalBool("all")
+	// all := c.GlobalBool("all")
 	logPrefix := c.GlobalString("logPrefix")
 
 	logger.SetPrefix(fmt.Sprintf("[%s] ", logPrefix))
@@ -105,11 +109,57 @@ func mainAction(c *cli.Context) {
 	// build right now
 	build(builder, runner, logger)
 
-	// scan for changes
-	scanChanges(c.GlobalString("path"), c.GlobalStringSlice("excludeDir"), all, func() {
-		runner.Kill()
-		build(builder, runner, logger)
-	})
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer watcher.Close()
+	dirs, err := getAllDir(c.GlobalString("path"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, dir := range dirs {
+		if strings.Contains(dir, ".git") {
+			continue
+		}
+		for _, x := range c.GlobalStringSlice("excludeDir") {
+			if x == dir {
+				continue
+			}
+		}
+		log.Println("watching dir: ", dir)
+		watcher.Add(dir)
+	}
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			// check file extentions
+			if containExt(path.Ext(event.Name), c.GlobalStringSlice("ext")) {
+				switch event.Op {
+				case fsnotify.Create:
+					if isDir(event.Name) {
+						log.Println("added dir: ", event.Name, " to watch list")
+						watcher.Add(event.Name)
+					}
+				case fsnotify.Chmod:
+
+				default:
+					log.Println("modified file:", event.Name)
+					runner.Kill()
+					build(builder, runner, logger)
+				}
+			}
+
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			log.Println("error:", err)
+		}
+	}
 }
 
 func build(builder internal.Builder, runner internal.Runner, logger *log.Logger) {
@@ -127,35 +177,6 @@ func build(builder internal.Builder, runner internal.Runner, logger *log.Logger)
 	time.Sleep(100 * time.Millisecond)
 }
 
-func scanChanges(watchPath string, excludeDirs []string, allFiles bool, cb func()) {
-	for {
-		filepath.Walk(watchPath, func(path string, info os.FileInfo, err error) error {
-			if path == ".git" && info.IsDir() {
-				return filepath.SkipDir
-			}
-			for _, x := range excludeDirs {
-				if x == path {
-					return filepath.SkipDir
-				}
-			}
-
-			// ignore hidden files
-			if filepath.Base(path)[0] == '.' {
-				return nil
-			}
-
-			if (allFiles || filepath.Ext(path) == ".go") && info.ModTime().After(startTime) {
-				cb()
-				startTime = time.Now()
-				return errors.New("done")
-			}
-
-			return nil
-		})
-		time.Sleep(500 * time.Millisecond)
-	}
-}
-
 func shutdown(runner internal.Runner) {
 	c := make(chan os.Signal, 2)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -168,4 +189,46 @@ func shutdown(runner internal.Runner) {
 		}
 		os.Exit(1)
 	}()
+}
+
+func getAllDir(pathname string) ([]string, error) {
+	var allDir []string
+	rd, err := ioutil.ReadDir(pathname)
+	if err != nil {
+		log.Print("read dir fail:", err)
+		return allDir, err
+	}
+
+	allDir = append(allDir, pathname)
+
+	for _, fi := range rd {
+		if fi.IsDir() {
+			fullDir := pathname + "/" + fi.Name()
+			subdir, err := getAllDir(fullDir)
+			allDir = append(allDir, subdir...)
+			if err != nil {
+				log.Print("read dir fail:", err)
+				return allDir, err
+			}
+		}
+	}
+	return allDir, nil
+}
+
+func isDir(path string) bool {
+	absPath, _ := filepath.Abs(path)
+	fi, err := os.Stat(absPath)
+	if err != nil {
+		log.Print(err)
+	}
+	return fi.IsDir()
+}
+
+func containExt(ext string, exts []string) bool {
+	for _, a := range exts {
+		if a == ext {
+			return true
+		}
+	}
+	return false
 }
