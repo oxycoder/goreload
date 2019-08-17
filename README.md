@@ -56,6 +56,7 @@ ENTRYPOINT goreload --bin ./bin/myapp
 ```
 
 ```yml
+# docker-compose.yml
 version: '3'
 services:
   web:

@@ -1,11 +1,9 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"path"
-	"runtime"
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
@@ -110,64 +108,56 @@ func mainAction(c *cli.Context) {
 
 	// build right now
 	build(builder, runner, logger)
-	log.Println(runtime.GOOS)
-	if runtime.GOOS == "windows" {
-		// scan for changes
-		scanChanges(c.GlobalString("path"), c.GlobalStringSlice("excludeDir"), func() {
-			runner.Kill()
-			build(builder, runner, logger)
-		})
-	} else {
-		watcher, err := fsnotify.NewWatcher()
-		if err != nil {
-			log.Fatal(err)
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer watcher.Close()
+	dirs, err := getAllDir(c.GlobalString("path"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, dir := range dirs {
+		if strings.Contains(dir, ".git") {
+			continue
 		}
-		defer watcher.Close()
-		dirs, err := getAllDir(c.GlobalString("path"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, dir := range dirs {
-			if strings.Contains(dir, ".git") {
+		for _, x := range c.GlobalStringSlice("excludeDir") {
+			if x == dir {
 				continue
 			}
-			for _, x := range c.GlobalStringSlice("excludeDir") {
-				if x == dir {
-					continue
-				}
-			}
-			log.Println("watching dir: ", dir)
-			watcher.Add(dir)
 		}
-		for {
-			select {
-			case event, ok := <-watcher.Events:
-				if !ok {
-					return
-				}
-				// check file extentions
-				if containExt(path.Ext(event.Name), c.GlobalStringSlice("ext")) {
-					switch event.Op {
-					case fsnotify.Create:
-						if isDir(event.Name) {
-							log.Println("added dir: ", event.Name, " to watch list")
-							watcher.Add(event.Name)
-						}
-					case fsnotify.Chmod:
-
-					default:
-						log.Println("modified file:", event.Name)
-						runner.Kill()
-						build(builder, runner, logger)
-					}
-				}
-
-			case err, ok := <-watcher.Errors:
-				if !ok {
-					return
-				}
-				log.Println("error:", err)
+		log.Println("watching dir: ", dir)
+		watcher.Add(dir)
+	}
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
 			}
+			// check file extentions
+			if containExt(path.Ext(event.Name), c.GlobalStringSlice("ext")) {
+				switch event.Op {
+				case fsnotify.Create:
+					if isDir(event.Name) {
+						log.Println("added dir: ", event.Name, " to watch list")
+						watcher.Add(event.Name)
+					}
+				case fsnotify.Chmod:
+
+				default:
+					log.Println("modified file:", event.Name)
+					runner.Kill()
+					build(builder, runner, logger)
+				}
+			}
+
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			log.Println("error:", err)
 		}
 	}
 
@@ -224,35 +214,6 @@ func getAllDir(pathname string) ([]string, error) {
 		}
 	}
 	return allDir, nil
-}
-
-func scanChanges(watchPath string, excludeDirs []string, cb func()) {
-	for {
-		filepath.Walk(watchPath, func(path string, info os.FileInfo, err error) error {
-			if path == ".git" && info.IsDir() {
-				return filepath.SkipDir
-			}
-			for _, x := range excludeDirs {
-				if x == path {
-					return filepath.SkipDir
-				}
-			}
-
-			// ignore hidden files
-			if filepath.Base(path)[0] == '.' {
-				return nil
-			}
-
-			if (filepath.Ext(path) == ".go") && info.ModTime().After(startTime) {
-				cb()
-				startTime = time.Now()
-				return errors.New("done")
-			}
-
-			return nil
-		})
-		time.Sleep(500 * time.Millisecond)
-	}
 }
 
 func isDir(path string) bool {
