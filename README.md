@@ -6,7 +6,7 @@ Just run `goreload` in your app directory.
 `goreload` will automatically recompile your code when it
 detects a change.
 
-goreload using fsnotify (Cross-platform file system notifications for Go)
+goreload using radovskyb/watcher to detect changes
 
 ## Installation
 
