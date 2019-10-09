@@ -114,7 +114,7 @@ func mainAction(c *cli.Context) {
 		watcher.Ignore(x)
 	}
 	watcher.Ignore(".git")
-	if err := watcher.Add("."); err != nil {
+	if err := watcher.AddRecursive("."); err != nil {
 		log.Fatalln(err)
 	}
 	go func() {
