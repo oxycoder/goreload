@@ -3,12 +3,10 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"path"
-	"strings"
 
-	"github.com/fsnotify/fsnotify"
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/oxycoder/goreload/internal"
+	"github.com/radovskyb/watcher"
 	"github.com/urfave/cli"
 
 	"log"
@@ -109,58 +107,39 @@ func mainAction(c *cli.Context) {
 	// build right now
 	build(builder, runner, logger)
 
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		log.Fatal(err)
-	}
+	watcher := watcher.New()
 	defer watcher.Close()
-	dirs, err := getAllDir(c.GlobalString("path"))
-	if err != nil {
-		log.Fatal(err)
+	watcher.IgnoreHiddenFiles(true)
+	for _, x := range c.GlobalStringSlice("excludeDir") {
+		watcher.Ignore(x)
 	}
-	for _, dir := range dirs {
-		if strings.Contains(dir, ".git") {
-			continue
-		}
-		for _, x := range c.GlobalStringSlice("excludeDir") {
-			if x == dir {
-				continue
-			}
-		}
-		log.Println("watching dir: ", dir)
-		watcher.Add(dir)
+	watcher.Ignore(".git")
+	if err := watcher.Add("."); err != nil {
+		log.Fatalln(err)
 	}
-	for {
-		select {
-		case event, ok := <-watcher.Events:
-			if !ok {
-				return
-			}
-			// check file extentions
-			if containExt(path.Ext(event.Name), c.GlobalStringSlice("ext")) {
-				switch event.Op {
-				case fsnotify.Create:
-					if isDir(event.Name) {
-						log.Println("added dir: ", event.Name, " to watch list")
-						watcher.Add(event.Name)
-					}
-				case fsnotify.Chmod:
-
-				default:
-					log.Println("modified file:", event.Name)
-					runner.Kill()
-					build(builder, runner, logger)
+	go func() {
+		for {
+			select {
+			case event, ok := <-watcher.Event:
+				if !ok {
+					return
 				}
-			}
+				log.Println("modified file:", event.Name())
+				runner.Kill()
+				build(builder, runner, logger)
 
-		case err, ok := <-watcher.Errors:
-			if !ok {
-				return
+			case err, ok := <-watcher.Error:
+				if !ok {
+					return
+				}
+				log.Println("error:", err)
 			}
-			log.Println("error:", err)
 		}
+	}()
+	// Start the watching process - it'll check for changes every 100ms.
+	if err := watcher.Start(time.Millisecond * 200); err != nil {
+		log.Fatalln(err)
 	}
-
 }
 
 func build(builder internal.Builder, runner internal.Runner, logger *log.Logger) {
