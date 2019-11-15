@@ -37,6 +37,7 @@ goreload --bin ./bin/myproject
    --excludeDir value, -x value  Relative directories to exclude
    --buildArgs value             Additional go build arguments
    --logPrefix value             Setup custom log prefix
+   --delay                       Delay build after detect files change, default value is 400
    --help, -h                    show help
    --version, -v                 print the version
 ```
