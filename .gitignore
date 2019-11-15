@@ -2,7 +2,7 @@
 *.o
 *.a
 *.so
-
+.DS_Store
 # Folders
 _obj
 _test
@@ -10,6 +10,7 @@ _test
 # Architecture specific extensions/prefixes
 *.[568vq]
 [568vq].out
+bin/
 
 *.cgo1.go
 *.cgo2.c

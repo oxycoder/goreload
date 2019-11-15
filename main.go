@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/oxycoder/goreload/internal"
@@ -123,8 +122,11 @@ func mainAction(c *cli.Context) {
 	filterPattern := fmt.Sprintf(`.*\.(%s)`, c.GlobalString("ext"))
 	r := regexp.MustCompile(filterPattern)
 	w.AddFilterHook(watcher.RegexFilterHook(r, false))
-	if err := w.AddRecursive("."); err != nil {
+	if err := w.AddRecursive(c.GlobalString("path")); err != nil {
 		log.Fatalln(err)
+	}
+	for path, f := range w.WatchedFiles() {
+		fmt.Printf("%s: %s\n", path, f.Name())
 	}
 	go func() {
 		haveModified := false
@@ -146,13 +148,12 @@ func mainAction(c *cli.Context) {
 			case <-w.Closed:
 				return
 
-			case <-time.After(time.Millisecond * time.Duration(c.GlobalInt64("delay"))):
+			case <-time.After(time.Millisecond * 200):
 				if haveModified {
 					runner.Kill()
 					build(builder, runner, logger)
 					haveModified = false
 				}
-				return
 			}
 		}
 	}()
@@ -189,46 +190,4 @@ func shutdown(runner internal.Runner) {
 		}
 		os.Exit(1)
 	}()
-}
-
-func getAllDir(pathname string) ([]string, error) {
-	var allDir []string
-	rd, err := ioutil.ReadDir(pathname)
-	if err != nil {
-		log.Print("read dir fail:", err)
-		return allDir, err
-	}
-
-	allDir = append(allDir, pathname)
-
-	for _, fi := range rd {
-		if fi.IsDir() {
-			fullDir := pathname + "/" + fi.Name()
-			subdir, err := getAllDir(fullDir)
-			allDir = append(allDir, subdir...)
-			if err != nil {
-				log.Print("read dir fail:", err)
-				return allDir, err
-			}
-		}
-	}
-	return allDir, nil
-}
-
-func isDir(path string) bool {
-	absPath, _ := filepath.Abs(path)
-	fi, err := os.Stat(absPath)
-	if err != nil {
-		log.Print(err)
-	}
-	return fi.IsDir()
-}
-
-func containExt(ext string, exts []string) bool {
-	for _, a := range exts {
-		if a == ext {
-			return true
-		}
-	}
-	return false
 }
