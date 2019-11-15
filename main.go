@@ -70,6 +70,10 @@ func main() {
 			Usage: "Delay build after detect changes",
 			Value: 400,
 		},
+		cli.BoolFlag{
+			Name:  "showWatchedFiles, swf",
+			Usage: "Verbose output",
+		},
 	}
 	app.Commands = []cli.Command{
 		{
@@ -84,7 +88,6 @@ func main() {
 }
 
 func mainAction(c *cli.Context) {
-	// all := c.GlobalBool("all")
 	logPrefix := c.GlobalString("logPrefix")
 
 	logger.SetPrefix(fmt.Sprintf("[%s] ", logPrefix))
@@ -125,9 +128,13 @@ func mainAction(c *cli.Context) {
 	if err := w.AddRecursive(c.GlobalString("path")); err != nil {
 		log.Fatalln(err)
 	}
-	for path, f := range w.WatchedFiles() {
-		fmt.Printf("%s: %s\n", path, f.Name())
+	if c.GlobalBool("showWatchedFiles") {
+		for path, f := range w.WatchedFiles() {
+			fmt.Printf("%s: %s\n", path, f.Name())
+		}
+		fmt.Println("--------------")
 	}
+
 	go func() {
 		haveModified := false
 		for {
