@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"syscall"
 	"time"
 )
@@ -36,9 +37,9 @@ func main() {
 			Value: "./bin/goreload",
 			Usage: "path to generated binary file",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:  "ext,e",
-			Value: &cli.StringSlice{".go"},
+			Value: `go|html`,
 			Usage: "File extention to watch changes",
 		},
 		cli.StringFlag{
@@ -53,7 +54,7 @@ func main() {
 		},
 		cli.StringSliceFlag{
 			Name:  "excludeDir,x",
-			Value: &cli.StringSlice{},
+			Value: &cli.StringSlice{"bin", ".git"},
 			Usage: "Relative directories to exclude",
 		},
 		cli.StringFlag{
@@ -64,6 +65,11 @@ func main() {
 			Name:  "logPrefix",
 			Usage: "Log prefix",
 			Value: "goreload",
+		},
+		cli.Int64Flag{
+			Name:  "delay",
+			Usage: "Delay build after detect changes",
+			Value: 400,
 		},
 	}
 	app.Commands = []cli.Command{
@@ -107,38 +113,51 @@ func mainAction(c *cli.Context) {
 	// build right now
 	build(builder, runner, logger)
 
-	watcher := watcher.New()
-	defer watcher.Close()
-	watcher.IgnoreHiddenFiles(true)
+	w := watcher.New()
+	defer w.Close()
+	w.IgnoreHiddenFiles(true)
 	for _, x := range c.GlobalStringSlice("excludeDir") {
-		watcher.Ignore(x)
+		w.Ignore(x)
 	}
-	watcher.Ignore(".git")
-	watcher.Ignore("bin")
-	if err := watcher.AddRecursive("."); err != nil {
+
+	filterPattern := fmt.Sprintf(`.*\.(%s)`, c.GlobalString("ext"))
+	r := regexp.MustCompile(filterPattern)
+	w.AddFilterHook(watcher.RegexFilterHook(r, false))
+	if err := w.AddRecursive("."); err != nil {
 		log.Fatalln(err)
 	}
 	go func() {
+		haveModified := false
 		for {
 			select {
-			case event, ok := <-watcher.Event:
+			case event, ok := <-w.Event:
 				if !ok {
 					return
 				}
 				log.Println("modified file:", event.Name())
-				runner.Kill()
-				build(builder, runner, logger)
+				haveModified = true
 
-			case err, ok := <-watcher.Error:
+			case err, ok := <-w.Error:
 				if !ok {
 					return
 				}
 				log.Println("error:", err)
+
+			case <-w.Closed:
+				return
+
+			case <-time.After(time.Millisecond * time.Duration(c.GlobalInt64("delay"))):
+				if haveModified {
+					runner.Kill()
+					build(builder, runner, logger)
+					haveModified = false
+				}
+				return
 			}
 		}
 	}()
 	// Start the watching process - it'll check for changes every 100ms.
-	if err := watcher.Start(time.Millisecond * 200); err != nil {
+	if err := w.Start(time.Millisecond * 200); err != nil {
 		log.Fatalln(err)
 	}
 }

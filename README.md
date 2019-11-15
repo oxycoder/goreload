@@ -33,7 +33,7 @@ goreload --bin ./bin/myproject
    --bin value, -b value         Path to generated binary file (default: "./bin/goreload")
    --path value, -t value        Path to watch files from (default: ".")
    --build value, -d value       Path to build files from (defaults to same value as --path)
-   --ext value, -e value         File extention to watch changes (default: .go)
+   --ext value, -e value         File extention to watch changes, seperate by `|` character, default `go|html`
    --excludeDir value, -x value  Relative directories to exclude
    --buildArgs value             Additional go build arguments
    --logPrefix value             Setup custom log prefix
