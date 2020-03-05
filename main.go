@@ -6,7 +6,7 @@ import (
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/oxycoder/goreload/internal"
 	"github.com/radovskyb/watcher"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 
 	"log"
 	"os"
@@ -32,29 +32,34 @@ func main() {
 	app.Action = mainAction
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
-			Name:  "bin,b",
-			Value: "./bin/goreload",
-			Usage: "path to generated binary file",
+			Name:    "bin",
+			Aliases: []string{"b"},
+			Value:   "./bin/goreload",
+			Usage:   "path to generated binary file",
 		},
 		&cli.StringFlag{
-			Name:  "ext,e",
-			Value: `go|html`,
-			Usage: "File extention to watch changes",
+			Name:    "ext",
+			Aliases: []string{"e"},
+			Value:   `go|html`,
+			Usage:   "File extention to watch changes",
 		},
 		&cli.StringFlag{
-			Name:  "path,t",
-			Value: ".",
-			Usage: "Path to watch files from",
+			Name:    "path",
+			Aliases: []string{"t"},
+			Value:   ".",
+			Usage:   "Path to watch files from",
 		},
 		&cli.StringFlag{
-			Name:  "build,d",
-			Value: "",
-			Usage: "Path to build files from (defaults to same value as --path)",
+			Name:    "build",
+			Aliases: []string{"d"},
+			Value:   "",
+			Usage:   "Path to build files from (defaults to same value as --path)",
 		},
 		&cli.StringSliceFlag{
-			Name:  "excludeDir,x",
-			Value: &cli.StringSlice{"bin", ".git"},
-			Usage: "Relative directories to exclude",
+			Name:    "excludeDir",
+			Aliases: []string{"x"},
+			Value:   cli.NewStringSlice("bin", ".git"),
+			Usage:   "Relative directories to exclude",
 		},
 		&cli.StringFlag{
 			Name:  "buildArgs",
@@ -75,20 +80,19 @@ func main() {
 			Usage: "Verbose output",
 		},
 	}
-	app.Commands = []cli.Command{
+	app.Commands = []*cli.Command{
 		{
-			Name:      "run",
-			ShortName: "r",
-			Usage:     "Run the goreload",
-			Action:    mainAction,
+			Name:   "run",
+			Usage:  "Run the goreload",
+			Action: mainAction,
 		},
 	}
 
 	app.Run(os.Args)
 }
 
-func mainAction(c *cli.Context) {
-	logPrefix := c.GlobalString("logPrefix")
+func mainAction(c *cli.Context) error {
+	logPrefix := c.String("logPrefix")
 
 	logger.SetPrefix(fmt.Sprintf("[%s] ", logPrefix))
 
@@ -97,17 +101,17 @@ func mainAction(c *cli.Context) {
 		logger.Fatal(err)
 	}
 
-	buildArgs, err := shellwords.Parse(c.GlobalString("buildArgs"))
+	buildArgs, err := shellwords.Parse(c.String("buildArgs"))
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	buildPath := c.GlobalString("build")
+	buildPath := c.String("build")
 	if buildPath == "" {
-		buildPath = c.GlobalString("path")
+		buildPath = c.String("path")
 	}
-	builder := internal.NewBuilder(buildPath, c.GlobalString("bin"), wd, buildArgs)
-	runner := internal.NewRunner(filepath.Join(wd, builder.Binary()), c.Args()...)
+	builder := internal.NewBuilder(buildPath, c.String("bin"), wd, buildArgs)
+	runner := internal.NewRunner(filepath.Join(wd, builder.Binary()), c.Args().Slice()...)
 	runner.SetWriter(os.Stdout)
 
 	shutdown(runner)
@@ -118,17 +122,17 @@ func mainAction(c *cli.Context) {
 	w := watcher.New()
 	defer w.Close()
 	w.IgnoreHiddenFiles(true)
-	for _, x := range c.GlobalStringSlice("excludeDir") {
+	for _, x := range c.StringSlice("excludeDir") {
 		w.Ignore(x)
 	}
 
-	filterPattern := fmt.Sprintf(`.*\.(%s)`, c.GlobalString("ext"))
+	filterPattern := fmt.Sprintf(`.*\.(%s)`, c.String("ext"))
 	r := regexp.MustCompile(filterPattern)
 	w.AddFilterHook(watcher.RegexFilterHook(r, false))
-	if err := w.AddRecursive(c.GlobalString("path")); err != nil {
+	if err := w.AddRecursive(c.String("path")); err != nil {
 		log.Fatalln(err)
 	}
-	if c.GlobalBool("showWatchedFiles") {
+	if c.Bool("showWatchedFiles") {
 		for path, f := range w.WatchedFiles() {
 			fmt.Printf("%s: %s\n", path, f.Name())
 		}
@@ -168,6 +172,7 @@ func mainAction(c *cli.Context) {
 	if err := w.Start(time.Millisecond * 200); err != nil {
 		log.Fatalln(err)
 	}
+	return err
 }
 
 func build(builder internal.Builder, runner internal.Runner, logger *log.Logger) {
