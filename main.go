@@ -31,46 +31,46 @@ func main() {
 	app.Usage = "A live reload utility for Go web applications."
 	app.Action = mainAction
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "bin,b",
 			Value: "./bin/goreload",
 			Usage: "path to generated binary file",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "ext,e",
 			Value: `go|html`,
 			Usage: "File extention to watch changes",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "path,t",
 			Value: ".",
 			Usage: "Path to watch files from",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "build,d",
 			Value: "",
 			Usage: "Path to build files from (defaults to same value as --path)",
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "excludeDir,x",
 			Value: &cli.StringSlice{"bin", ".git"},
 			Usage: "Relative directories to exclude",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "buildArgs",
 			Usage: "Additional go build arguments",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "logPrefix",
 			Usage: "Log prefix",
 			Value: "goreload",
 		},
-		cli.Int64Flag{
+		&cli.Int64Flag{
 			Name:  "delay",
 			Usage: "Delay build after detect changes",
 			Value: 400,
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "showWatchedFiles, swf",
 			Usage: "Verbose output",
 		},
