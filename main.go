@@ -179,9 +179,13 @@ func build(builder internal.Builder, runner internal.Runner, logger *log.Logger,
 		fmt.Println(builder.Errors())
 	} else {
 		logger.Printf("%sBuild finished%s\n", colorGreen, colorReset)
-		runner.Run()
+		p, err := runner.Run()
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		if isDebug {
+			logger.Printf("Spawn at pid=%d", p.Process.Pid)
 			dbg, err := runner.AttachDebugger()
 			if err != nil {
 				logger.Fatal(err)
