@@ -12,7 +12,8 @@
             "program": "${workspaceFolder}",
             "env": {},
             "args": [
-                "--path=dummy"
+                "--path=dummy",
+                "--debug=true"
             ]
         }
     ]

@@ -3,7 +3,6 @@ package internal
 import (
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -19,12 +18,12 @@ type builder struct {
 	dir       string
 	binary    string
 	errors    string
-	wd        string
 	buildArgs []string
+	debug     bool
 }
 
 // NewBuilder creates new builder
-func NewBuilder(dir string, bin string, wd string, buildArgs []string) Builder {
+func NewBuilder(sourcePath string, bin string, isDebug bool, buildArgs []string) Builder {
 	if len(bin) == 0 {
 		bin = "bin"
 	}
@@ -36,13 +35,7 @@ func NewBuilder(dir string, bin string, wd string, buildArgs []string) Builder {
 		}
 	}
 
-	if dir == "" {
-		dir = "."
-	} else {
-		dir = filepath.Join(wd, dir)
-	}
-
-	return &builder{dir: dir, binary: bin, wd: wd, buildArgs: buildArgs}
+	return &builder{dir: sourcePath, binary: bin, debug: isDebug, buildArgs: buildArgs}
 }
 
 func (b *builder) Binary() string {
@@ -54,7 +47,8 @@ func (b *builder) Errors() string {
 }
 
 func (b *builder) Build() error {
-	args := append([]string{"go", "build", "-o", filepath.Join(b.wd, b.binary)}, b.buildArgs...)
+	args := append([]string{"go", "build", "-o", b.binary})
+	args = append(args, b.buildArgs...)
 	args = append(args, b.dir)
 
 	command := exec.Command(args[0], args[1:]...)

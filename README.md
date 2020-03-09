@@ -30,17 +30,17 @@ goreload --bin ./bin/myproject
 ## Options
 
 ```txt
-   --bin value, -b value         Path to generated binary file (default: "./bin/goreload")
-   --path value, -t value        Path to watch files from (default: ".")
-   --build value, -d value       Path to build files from (defaults to same value as --path)
-   --ext value, -e value         File extention to watch changes, seperate by `|` character, default `go|html`
-   --excludeDir value, -x value  Relative directories to exclude
-   --buildArgs value             Additional go build arguments
-   --logPrefix value             Setup custom log prefix
-   --delay                       Delay build after detect files change, default value is 400
-   --help, -h                    show help
-   --version, -v                 print the version
-   --showWatchedFiles, -swf      Print watched files
+   --bin value, -b value         string      Path to generated binary file (default: "./bin/goreload")
+   --path value, -t value        string      Path to watch files from (default: ".")
+   --ext value, -e value         string      File extention to watch changes, seperate by `|` character, default `go|html`
+   --excludeDir value, -x value  []string    Relative directories to exclude
+   --buildArgs value             string      Additional go build arguments
+   --logPrefix value             string      Setup custom log prefix
+   --delay                       int         Delay build after detect files change, default value is 400
+   --help, -h                    bool        show help
+   --version, -v                 string      print the version
+   --showWatchedFiles, -swf      bool        Print watched files
+   --debug, -dlv                 bool        Enable debug
 ```
 
 ### Use with Docker

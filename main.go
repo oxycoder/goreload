@@ -11,7 +11,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"regexp"
 	"syscall"
 	"time"
@@ -34,7 +33,7 @@ func main() {
 		&cli.StringFlag{
 			Name:    "bin",
 			Aliases: []string{"b"},
-			Value:   "./bin/goreload",
+			Value:   "./bin/gorl",
 			Usage:   "path to generated binary file",
 		},
 		&cli.StringFlag{
@@ -45,15 +44,9 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:    "path",
-			Aliases: []string{"t"},
+			Aliases: []string{"p"},
 			Value:   ".",
 			Usage:   "Path to watch files from",
-		},
-		&cli.StringFlag{
-			Name:    "build",
-			Aliases: []string{"d"},
-			Value:   "",
-			Usage:   "Path to build files from (defaults to same value as --path)",
 		},
 		&cli.StringSliceFlag{
 			Name:    "excludeDir",
@@ -68,7 +61,7 @@ func main() {
 		&cli.StringFlag{
 			Name:  "logPrefix",
 			Usage: "Log prefix",
-			Value: "goreload",
+			Value: "GoRL",
 		},
 		&cli.Int64Flag{
 			Name:  "delay",
@@ -78,6 +71,12 @@ func main() {
 		&cli.BoolFlag{
 			Name:  "showWatchedFiles, swf",
 			Usage: "Verbose output",
+		},
+		&cli.BoolFlag{
+			Name:    "debug",
+			Aliases: []string{"dlv"},
+			Usage:   "Start with debugger attached, require dlv installed, default address is :2345",
+			Value:   false,
 		},
 	}
 	app.Commands = []*cli.Command{
@@ -96,28 +95,24 @@ func mainAction(c *cli.Context) error {
 
 	logger.SetPrefix(fmt.Sprintf("[%s] ", logPrefix))
 
-	wd, err := os.Getwd()
-	if err != nil {
-		logger.Fatal(err)
-	}
-
 	buildArgs, err := shellwords.Parse(c.String("buildArgs"))
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	buildPath := c.String("build")
-	if buildPath == "" {
-		buildPath = c.String("path")
+	sourcePath := c.String("path")
+	// cd to source folder
+	if err := os.Chdir(sourcePath); err != nil {
+		logger.Fatal(err)
 	}
-	builder := internal.NewBuilder(buildPath, c.String("bin"), wd, buildArgs)
-	runner := internal.NewRunner(filepath.Join(wd, builder.Binary()), c.Args().Slice()...)
+	builder := internal.NewBuilder(".", c.String("bin"), c.Bool("debug"), buildArgs)
+	runner := internal.NewRunner(c.String("bin"), c.Args().Slice()...)
 	runner.SetWriter(os.Stdout)
 
 	shutdown(runner)
 
 	// build right now
-	build(builder, runner, logger)
+	build(builder, runner, logger, c.Bool("debug"))
 
 	w := watcher.New()
 	defer w.Close()
@@ -129,7 +124,7 @@ func mainAction(c *cli.Context) error {
 	filterPattern := fmt.Sprintf(`.*\.(%s)`, c.String("ext"))
 	r := regexp.MustCompile(filterPattern)
 	w.AddFilterHook(watcher.RegexFilterHook(r, false))
-	if err := w.AddRecursive(c.String("path")); err != nil {
+	if err := w.AddRecursive("."); err != nil {
 		log.Fatalln(err)
 	}
 	if c.Bool("showWatchedFiles") {
@@ -162,7 +157,7 @@ func mainAction(c *cli.Context) error {
 			case <-time.After(time.Millisecond * 200):
 				if haveModified {
 					runner.Kill()
-					build(builder, runner, logger)
+					build(builder, runner, logger, c.Bool("debug"))
 					haveModified = false
 				}
 			}
@@ -175,7 +170,7 @@ func mainAction(c *cli.Context) error {
 	return err
 }
 
-func build(builder internal.Builder, runner internal.Runner, logger *log.Logger) {
+func build(builder internal.Builder, runner internal.Runner, logger *log.Logger, isDebug bool) {
 	logger.Println("Building...")
 
 	err := builder.Build()
@@ -185,6 +180,14 @@ func build(builder internal.Builder, runner internal.Runner, logger *log.Logger)
 	} else {
 		logger.Printf("%sBuild finished%s\n", colorGreen, colorReset)
 		runner.Run()
+
+		if isDebug {
+			dbg, err := runner.AttachDebugger()
+			if err != nil {
+				logger.Fatal(err)
+			}
+			logger.Printf("Debugger attached with PID: %d", dbg.Process.Pid)
+		}
 	}
 
 	time.Sleep(100 * time.Millisecond)

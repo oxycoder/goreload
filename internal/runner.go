@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"time"
 )
 
@@ -16,6 +17,7 @@ type Runner interface {
 	Info() (os.FileInfo, error)
 	SetWriter(io.Writer)
 	Kill() error
+	AttachDebugger() (*exec.Cmd, error)
 }
 
 type runner struct {
@@ -23,6 +25,7 @@ type runner struct {
 	args      []string
 	writer    io.Writer
 	command   *exec.Cmd
+	dbg       *exec.Cmd
 	starttime time.Time
 }
 
@@ -90,7 +93,7 @@ func (r *runner) Kill() error {
 	select {
 	case <-time.After(3 * time.Second):
 		if err := r.command.Process.Kill(); err != nil {
-			log.Println("failed to kill: ", err)
+			return err
 		}
 	case <-done:
 	}
@@ -134,4 +137,39 @@ func (r *runner) needsRefresh() bool {
 		return false
 	}
 	return info.ModTime().After(r.starttime)
+}
+
+func (r *runner) AttachDebugger() (*exec.Cmd, error) {
+	r.dbg = exec.Command(
+		"dlv",
+		"attach",
+		"--accept-multiclient",
+		"--listen=:2435",
+		"--headless=true",
+		"--api-version=2",
+		"--log",
+		"--log-output=lldbout,gdbwire",
+		strconv.Itoa(r.command.Process.Pid),
+	)
+
+	stdout, err := r.dbg.StdoutPipe()
+	if err != nil {
+		return r.dbg, err
+	}
+	stderr, err := r.dbg.StderrPipe()
+	if err != nil {
+		return r.dbg, err
+	}
+
+	err = r.dbg.Start()
+	if err != nil {
+		return r.dbg, err
+	}
+
+	r.starttime = time.Now()
+
+	go io.Copy(r.writer, stdout)
+	go io.Copy(r.writer, stderr)
+	go r.dbg.Wait()
+	return r.dbg, err
 }
