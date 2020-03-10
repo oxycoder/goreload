@@ -78,6 +78,12 @@ func (r *runner) Kill() error {
 		close(done)
 	}()
 
+	if r.debug {
+		err := r.dbg.Process.Kill()
+		if err != nil {
+			return err
+		}
+	}
 	// trying a "soft" kill first
 	if runtime.GOOS == "windows" {
 		if err := r.command.Process.Kill(); err != nil {
@@ -85,12 +91,6 @@ func (r *runner) Kill() error {
 		}
 	} else {
 		err := r.command.Process.Signal(os.Interrupt)
-		if err != nil {
-			return err
-		}
-	}
-	if r.debug {
-		err := r.dbg.Process.Kill()
 		if err != nil {
 			return err
 		}
@@ -150,6 +150,7 @@ func (r *runner) AttachDebugger() (*exec.Cmd, error) {
 	r.dbg = exec.Command(
 		"dlv",
 		"attach",
+		"--continue", // Do not pause process on attach
 		"--accept-multiclient",
 		"--listen=:2345",
 		"--headless=true",
