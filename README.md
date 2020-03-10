@@ -72,3 +72,8 @@ services:
     ports:
       - "8000:8000"
 ```
+
+### Build with version
+```sh
+./build.sh
+```

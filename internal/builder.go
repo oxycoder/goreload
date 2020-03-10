@@ -48,6 +48,9 @@ func (b *builder) Errors() string {
 
 func (b *builder) Build() error {
 	args := append([]string{"go", "build", "-o", b.binary})
+	if b.debug {
+		args = append(args, `-gcflags="all=-N -l"`)
+	}
 	args = append(args, b.buildArgs...)
 	args = append(args, b.dir)
 

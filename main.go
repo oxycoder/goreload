@@ -22,12 +22,15 @@ var (
 	colorGreen = string([]byte{27, 91, 57, 55, 59, 51, 50, 59, 49, 109})
 	colorRed   = string([]byte{27, 91, 57, 55, 59, 51, 49, 59, 49, 109})
 	colorReset = string([]byte{27, 91, 48, 109})
+
+	sha1ver   string
+	buildTime string
 )
 
 func main() {
 	app := cli.NewApp()
 	app.Name = "goreload"
-	app.Usage = "A live reload utility for Go web applications."
+	app.Usage = fmt.Sprintf("A live reload utility for Go web applications, sha1: %s, build time: %s", sha1ver, buildTime)
 	app.Action = mainAction
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
@@ -85,9 +88,19 @@ func main() {
 			Usage:  "Run the goreload",
 			Action: mainAction,
 		},
+		{
+			Name:   "version",
+			Usage:  "Version info",
+			Action: verAction,
+		},
 	}
 
 	app.Run(os.Args)
+}
+
+func verAction(c *cli.Context) error {
+	log.Printf("GoReload\nsha1: %s\nbuild time: %s", sha1ver, buildTime)
+	return nil
 }
 
 func mainAction(c *cli.Context) error {
@@ -106,7 +119,7 @@ func mainAction(c *cli.Context) error {
 		logger.Fatal(err)
 	}
 	builder := internal.NewBuilder(".", c.String("bin"), c.Bool("debug"), buildArgs)
-	runner := internal.NewRunner(c.String("bin"), c.Args().Slice()...)
+	runner := internal.NewRunner(c.String("bin"), c.Bool("debug"), c.Args().Slice()...)
 	runner.SetWriter(os.Stdout)
 
 	shutdown(runner)
@@ -184,13 +197,12 @@ func build(builder internal.Builder, runner internal.Runner, logger *log.Logger,
 			log.Fatal(err)
 		}
 
+		logger.Printf("Run success (pid=%d)", p.Process.Pid)
 		if isDebug {
-			logger.Printf("Spawn at pid=%d", p.Process.Pid)
-			dbg, err := runner.AttachDebugger()
+			_, err := runner.AttachDebugger()
 			if err != nil {
 				logger.Fatal(err)
 			}
-			logger.Printf("Debugger attached with PID: %d", dbg.Process.Pid)
 		}
 	}
 

@@ -26,15 +26,17 @@ type runner struct {
 	writer    io.Writer
 	command   *exec.Cmd
 	dbg       *exec.Cmd
+	debug     bool
 	starttime time.Time
 }
 
 // NewRunner creates new runner
-func NewRunner(bin string, args ...string) Runner {
+func NewRunner(bin string, isDebug bool, args ...string) Runner {
 	return &runner{
 		bin:       bin,
 		args:      args,
 		writer:    ioutil.Discard,
+		debug:     isDebug,
 		starttime: time.Now(),
 	}
 }
@@ -74,6 +76,9 @@ func (r *runner) Kill() error {
 	done := make(chan error)
 	go func() {
 		r.command.Wait()
+		if r.debug {
+			r.dbg.Wait()
+		}
 		close(done)
 	}()
 
@@ -84,6 +89,12 @@ func (r *runner) Kill() error {
 		}
 	} else {
 		err := r.command.Process.Signal(os.Interrupt)
+		if err != nil {
+			return err
+		}
+	}
+	if r.debug {
+		err := r.dbg.Process.Kill()
 		if err != nil {
 			return err
 		}
@@ -148,9 +159,9 @@ func (r *runner) AttachDebugger() (*exec.Cmd, error) {
 		"--headless=true",
 		"--api-version=2",
 		"--log",
-		"--log-output=lldbout,gdbwire",
 		strconv.Itoa(r.command.Process.Pid),
 	)
+	log.Printf("DLV attaching to process (pid=%d)", r.command.Process.Pid)
 
 	stdout, err := r.dbg.StdoutPipe()
 	if err != nil {
