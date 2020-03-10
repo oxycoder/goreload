@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	shellwords "github.com/mattn/go-shellwords"
+	"github.com/oxycoder/goreload/color"
 	"github.com/oxycoder/goreload/internal"
 	"github.com/radovskyb/watcher"
 	"github.com/urfave/cli/v2"
@@ -17,11 +18,8 @@ import (
 )
 
 var (
-	startTime  = time.Now()
-	logger     = log.New(os.Stdout, "[goreload] ", 0)
-	colorGreen = string([]byte{27, 91, 57, 55, 59, 51, 50, 59, 49, 109})
-	colorRed   = string([]byte{27, 91, 57, 55, 59, 51, 49, 59, 49, 109})
-	colorReset = string([]byte{27, 91, 48, 109})
+	startTime = time.Now()
+	logger    = log.New(os.Stdout, "[💕Go] ", 0)
 
 	sha1ver   string
 	buildTime string
@@ -64,7 +62,7 @@ func main() {
 		&cli.StringFlag{
 			Name:  "logPrefix",
 			Usage: "Log prefix",
-			Value: "GoRL",
+			Value: "",
 		},
 		&cli.Int64Flag{
 			Name:  "delay",
@@ -99,14 +97,18 @@ func main() {
 }
 
 func verAction(c *cli.Context) error {
-	log.Printf("GoReload\nsha1: %s\nbuild time: %s", sha1ver, buildTime)
+	logInfo(" -------------------GoReload------------------ ")
+	logInfo("| build time: %-32v|", buildTime)
+	logInfo("| sha1: %-38v|", sha1ver)
+	logInfo(" ---------------------------------------------- ")
 	return nil
 }
 
 func mainAction(c *cli.Context) error {
-	logPrefix := c.String("logPrefix")
-
-	logger.SetPrefix(fmt.Sprintf("[%s] ", logPrefix))
+	verAction(c) // Display version on running
+	if c.String("logPrefix") != "" {
+		logger.SetPrefix(c.String("logPrefix"))
+	}
 
 	buildArgs, err := shellwords.Parse(c.String("buildArgs"))
 	if err != nil {
@@ -138,13 +140,12 @@ func mainAction(c *cli.Context) error {
 	r := regexp.MustCompile(filterPattern)
 	w.AddFilterHook(watcher.RegexFilterHook(r, false))
 	if err := w.AddRecursive("."); err != nil {
-		log.Fatalln(err)
+		logger.Fatalln(err)
 	}
 	if c.Bool("showWatchedFiles") {
 		for path, f := range w.WatchedFiles() {
 			fmt.Printf("%s: %s\n", path, f.Name())
 		}
-		fmt.Println("--------------")
 	}
 
 	go func() {
@@ -155,14 +156,14 @@ func mainAction(c *cli.Context) error {
 				if !ok {
 					return
 				}
-				log.Println("modified file:", event.Name())
+				logInfo("modified file: %s", event.Name())
 				haveModified = true
 
 			case err, ok := <-w.Error:
 				if !ok {
 					return
 				}
-				log.Println("error:", err)
+				logger.Println("error:", err)
 
 			case <-w.Closed:
 				return
@@ -178,31 +179,32 @@ func mainAction(c *cli.Context) error {
 	}()
 	// Start the watching process - it'll check for changes every 100ms.
 	if err := w.Start(time.Millisecond * 200); err != nil {
-		log.Fatalln(err)
+		logger.Fatalln(err)
 	}
 	return err
 }
 
 func build(builder internal.Builder, runner internal.Runner, logger *log.Logger, isDebug bool) {
-	logger.Println("Building...")
+	logInfo("Building...")
 
 	err := builder.Build()
 	if err != nil {
-		logger.Printf("%sBuild failed%s\n", colorRed, colorReset)
+		logError("Build failed")
 		fmt.Println(builder.Errors())
 	} else {
-		logger.Printf("%sBuild finished%s\n", colorGreen, colorReset)
+		logSuccess("Build finished")
 		p, err := runner.Run()
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
 
-		logger.Printf("Run success (pid=%d)", p.Process.Pid)
+		logDebug(`Process started with (pid=%d)`, p.Process.Pid)
 		if isDebug {
 			_, err := runner.AttachDebugger()
 			if err != nil {
 				logger.Fatal(err)
 			}
+			logDebug("Debugger attached to pid=%d", p.Process.Pid)
 		}
 	}
 
@@ -214,11 +216,41 @@ func shutdown(runner internal.Runner) {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		s := <-c
-		log.Println("Got signal: ", s)
+		logger.Println("Got signal: ", s)
 		err := runner.Kill()
 		if err != nil {
-			log.Print("Error killing: ", err)
+			logger.Println("Error killing process: ", err)
 		}
 		os.Exit(1)
 	}()
+}
+
+func logSuccess(text string, args ...interface{}) {
+	args = append([]interface{}{color.Green}, args...)
+	args = append(args, color.Reset)
+	logger.Printf("%s"+text+"%s", args...)
+}
+
+func logInfo(text string, args ...interface{}) {
+	args = append([]interface{}{color.Cyan}, args...)
+	args = append(args, color.Reset)
+	logger.Printf("%s"+text+"%s", args...)
+}
+
+func logError(text string, args ...interface{}) {
+	args = append([]interface{}{color.Red}, args...)
+	args = append(args, color.Reset)
+	logger.Printf("%s"+text+"%s", args...)
+}
+
+func logWarn(text string, args ...interface{}) {
+	args = append([]interface{}{color.Yellow}, args...)
+	args = append(args, color.Reset)
+	logger.Printf("%s"+text+"%s", args...)
+}
+
+func logDebug(text string, args ...interface{}) {
+	args = append([]interface{}{color.Magenta}, args...)
+	args = append(args, color.Reset)
+	logger.Printf("%s"+text+"%s", args...)
 }

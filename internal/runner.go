@@ -3,7 +3,6 @@ package internal
 import (
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"runtime"
@@ -48,9 +47,6 @@ func (r *runner) Run() (*exec.Cmd, error) {
 
 	if r.command == nil || r.Exited() {
 		err := r.runBin()
-		if err != nil {
-			log.Print("Error running: ", err)
-		}
 		time.Sleep(250 * time.Millisecond)
 		return r.command, err
 	}
@@ -155,13 +151,11 @@ func (r *runner) AttachDebugger() (*exec.Cmd, error) {
 		"dlv",
 		"attach",
 		"--accept-multiclient",
-		"--listen=:2435",
+		"--listen=:2345",
 		"--headless=true",
 		"--api-version=2",
-		"--log",
 		strconv.Itoa(r.command.Process.Pid),
 	)
-	log.Printf("DLV attaching to process (pid=%d)", r.command.Process.Pid)
 
 	stdout, err := r.dbg.StdoutPipe()
 	if err != nil {
