@@ -6,7 +6,7 @@ Just run `goreload` in your app directory.
 `goreload` will automatically recompile your code when it
 detects a change.
 
-goreload using radovskyb/watcher to detect changes
+goreload using fsnotify as default tool to detect changes, radovskyb/watcher can be configured by args.
 
 ## Installation
 
@@ -35,12 +35,14 @@ goreload --bin ./bin/myproject
    --ext value, -e value         string      File extention to watch changes, seperate by `|` character, default `go|html`
    --excludeDir value, -x value  []string    Relative directories to exclude
    --buildArgs value             string      Additional go build arguments
+   --runArgs value               string      Additional run arguments
    --logPrefix value             string      Setup custom log prefix
    --delay                       int         Delay build after detect files change, default value is 400
    --help, -h                    bool        show help
    --version, -v                 string      print the version
    --showWatchedFiles, -swf      bool        Print watched files
    --debug, -dlv                 bool        Enable debug
+   --watcher                     string      Watcher, default `fsnotify`, available: `fsnotify` and `bwatcher`
 ```
 
 ### Use with Docker

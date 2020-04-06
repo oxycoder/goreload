@@ -150,7 +150,7 @@ func (r *runner) AttachDebugger() (*exec.Cmd, error) {
 	r.dbg = exec.Command(
 		"dlv",
 		"attach",
-		"--continue", // Do not pause process on attach
+		// "--continue", // Do not pause process on attach
 		"--accept-multiclient",
 		"--listen=:2345",
 		"--headless=true",

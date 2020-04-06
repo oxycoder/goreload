@@ -10,7 +10,6 @@ import (
 // Builder interface
 type Builder interface {
 	Build() error
-	Binary() string
 	Errors() string
 }
 
@@ -36,10 +35,6 @@ func NewBuilder(sourcePath string, bin string, isDebug bool, buildArgs []string)
 	}
 
 	return &builder{dir: sourcePath, binary: bin, debug: isDebug, buildArgs: buildArgs}
-}
-
-func (b *builder) Binary() string {
-	return b.binary
 }
 
 func (b *builder) Errors() string {
