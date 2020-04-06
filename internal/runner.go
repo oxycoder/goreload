@@ -23,7 +23,7 @@ type runner struct {
 	bin       string
 	args      []string
 	writer    io.Writer
-	command   *exec.Cmd
+	cmd       *exec.Cmd
 	dbg       *exec.Cmd
 	debug     bool
 	dlvAddr   string
@@ -47,12 +47,12 @@ func (r *runner) Run() (*exec.Cmd, error) {
 		r.Kill()
 	}
 
-	if r.command == nil || r.Exited() {
+	if r.cmd == nil || r.Exited() {
 		err := r.runBin()
 		time.Sleep(250 * time.Millisecond)
-		return r.command, err
+		return r.cmd, err
 	}
-	return r.command, nil
+	return r.cmd, nil
 }
 
 func (r *runner) Info() (os.FileInfo, error) {
@@ -64,16 +64,16 @@ func (r *runner) SetWriter(writer io.Writer) {
 }
 
 func (r *runner) Kill() error {
-	if r.command == nil {
+	if r.cmd == nil {
 		return nil
 	}
-	if r.command.Process == nil {
+	if r.cmd.Process == nil {
 		return nil
 	}
 
 	done := make(chan error)
 	go func() {
-		r.command.Wait()
+		r.cmd.Wait()
 		if r.debug {
 			r.dbg.Wait()
 		}
@@ -81,18 +81,18 @@ func (r *runner) Kill() error {
 	}()
 
 	if r.debug {
-		err := r.dbg.Process.Kill()
+		err := kill(r.dbg)
 		if err != nil {
 			return err
 		}
 	}
 	// trying a "soft" kill first
 	if runtime.GOOS == "windows" {
-		if err := r.command.Process.Kill(); err != nil {
+		if err := r.cmd.Process.Kill(); err != nil {
 			return err
 		}
 	} else {
-		err := r.command.Process.Signal(os.Interrupt)
+		err := r.cmd.Process.Signal(os.Interrupt)
 		if err != nil {
 			return err
 		}
@@ -101,32 +101,32 @@ func (r *runner) Kill() error {
 	// wait for our process to die before we return or hard kill after 3 sec
 	select {
 	case <-time.After(3 * time.Second):
-		if err := r.command.Process.Kill(); err != nil {
+		if err := kill(r.cmd); err != nil {
 			return err
 		}
 	case <-done:
 	}
-	r.command = nil
+	r.cmd = nil
 
 	return nil
 }
 
 func (r *runner) Exited() bool {
-	return r.command != nil && r.command.ProcessState != nil && r.command.ProcessState.Exited()
+	return r.cmd != nil && r.cmd.ProcessState != nil && r.cmd.ProcessState.Exited()
 }
 
 func (r *runner) runBin() error {
-	r.command = exec.Command(r.bin, r.args...)
-	stdout, err := r.command.StdoutPipe()
+	r.cmd = exec.Command(r.bin, r.args...)
+	stdout, err := r.cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
-	stderr, err := r.command.StderrPipe()
+	stderr, err := r.cmd.StderrPipe()
 	if err != nil {
 		return err
 	}
 
-	err = r.command.Start()
+	err = r.cmd.Start()
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (r *runner) runBin() error {
 
 	go io.Copy(r.writer, stdout)
 	go io.Copy(r.writer, stderr)
-	go r.command.Wait()
+	go r.cmd.Wait()
 
 	return nil
 }
@@ -157,7 +157,7 @@ func (r *runner) AttachDebugger() (*exec.Cmd, error) {
 		"--listen="+r.dlvAddr,
 		"--headless=true",
 		"--api-version=2",
-		strconv.Itoa(r.command.Process.Pid),
+		strconv.Itoa(r.cmd.Process.Pid),
 	)
 
 	stdout, err := r.dbg.StdoutPipe()

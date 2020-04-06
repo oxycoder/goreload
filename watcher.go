@@ -57,7 +57,7 @@ func kwatch(c *cli.Context, runner internal.Runner, builder internal.Builder) {
 			case <-w.Closed:
 				return
 
-			case <-time.After(time.Millisecond * 200):
+			case <-time.After(time.Millisecond * c.Duration("delay")):
 				if haveModified {
 					runner.Kill()
 					start(builder, runner, logger, c.Bool("debug"))
@@ -88,6 +88,7 @@ func fwatcher(c *cli.Context, runner internal.Runner, builder internal.Builder) 
 		w.Add(dir)
 	}
 	exts := strings.Split(c.String("ext"), "|")
+	haveModified := false
 	for {
 		select {
 		case event, ok := <-w.Events:
@@ -104,20 +105,32 @@ func fwatcher(c *cli.Context, runner internal.Runner, builder internal.Builder) 
 						}
 						w.Add(event.Name)
 					}
+					haveModified = true
+				case fsnotify.Remove:
+					if isDir(event.Name) {
+						w.Remove(event.Name)
+					}
+					haveModified = true
 				case fsnotify.Chmod:
-
 				default:
 					logInfo("modified file: %s", event.Name)
-					runner.Kill()
-					start(builder, runner, logger, c.Bool("debug"))
+					haveModified = true
 				}
 			}
 
+		case <-time.After(time.Millisecond * c.Duration("delay")):
+			if haveModified {
+				runner.Kill()
+				start(builder, runner, logger, c.Bool("debug"))
+				haveModified = false
+			}
+
 		case err, ok := <-w.Errors:
+			haveModified = false
+			logError("error: %s", err)
 			if !ok {
 				return
 			}
-			logError("error: %s", err)
 		}
 	}
 }

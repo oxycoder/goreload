@@ -50,10 +50,10 @@ func cliApp() *cli.App {
 			Usage: "Log prefix",
 			Value: "",
 		},
-		&cli.Int64Flag{
+		&cli.DurationFlag{
 			Name:  "delay",
 			Usage: "Delay build after detect changes",
-			Value: 400,
+			Value: 200,
 		},
 		&cli.BoolFlag{
 			Name:    "showWatchedFiles",
