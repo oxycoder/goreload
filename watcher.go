@@ -99,7 +99,9 @@ func fwatcher(c *cli.Context, runner internal.Runner, builder internal.Builder) 
 				switch event.Op {
 				case fsnotify.Create:
 					if isDir(event.Name) {
-						logSuccess("added dir: %s to watch list", event.Name)
+						if c.Bool("showWatchedFiles") {
+							logSuccess("%s added to watch list", event.Name)
+						}
 						w.Add(event.Name)
 					}
 				case fsnotify.Chmod:

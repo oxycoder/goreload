@@ -56,8 +56,10 @@ func cliApp() *cli.App {
 			Value: 400,
 		},
 		&cli.BoolFlag{
-			Name:  "showWatchedFiles, swf",
-			Usage: "Verbose output",
+			Name:    "showWatchedFiles",
+			Aliases: []string{"swf"},
+			Usage:   "Verbose output",
+			Value:   false,
 		},
 		&cli.BoolFlag{
 			Name:    "debug",
@@ -66,14 +68,16 @@ func cliApp() *cli.App {
 			Value:   false,
 		},
 		&cli.StringFlag{
-			Name:  "dlvAddress",
-			Usage: "dlv debug port",
-			Value: ":2345",
+			Name:    "dlvAddress",
+			Aliases: []string{"da"},
+			Usage:   "dlv debug port",
+			Value:   ":2345",
 		},
 		&cli.StringFlag{
-			Name:  "watcher",
-			Usage: "Choose default watcher, valid value is bwatch and fsnotify, default is fsnotify",
-			Value: "fsnotify",
+			Name:    "watcher",
+			Aliases: []string{"w"},
+			Usage:   "Choose default watcher, valid value is bwatch and fsnotify, default is fsnotify",
+			Value:   "fsnotify",
 		},
 	}
 	app.Commands = []*cli.Command{
