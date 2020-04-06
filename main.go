@@ -27,24 +27,27 @@ func mainAction(c *cli.Context) error {
 		logger.SetPrefix(c.String("logPrefix"))
 	}
 
-	buildArgs, err := shellwords.Parse(c.String("buildArgs"))
-	if err != nil {
-		logger.Fatal(err)
-	}
-
 	sourcePath := c.String("path")
 	// cd to source folder
 	if err := os.Chdir(sourcePath); err != nil {
 		logger.Fatal(err)
 	}
+	buildArgs, err := shellwords.Parse(c.String("buildArgs"))
+	if err != nil {
+		logger.Fatal(err)
+	}
 	builder := internal.NewBuilder(".", c.String("bin"), c.Bool("debug"), buildArgs)
-	runner := internal.NewRunner(c.String("bin"), c.Bool("debug"), c.Args().Slice()...)
+	runArgs, err := shellwords.Parse(c.String("runArgs"))
+	if err != nil {
+		logger.Fatal(err)
+	}
+	runner := internal.NewRunner(c.String("bin"), c.Bool("debug"), c.String("dlvAddr"), runArgs...)
 	runner.SetWriter(os.Stdout)
 
 	shutdown(runner)
 
 	// build right now
-	build(builder, runner, logger, c.Bool("debug"))
+	start(builder, runner, logger, c.Bool("debug"))
 	if c.String("watcher") == "fsnotify" {
 		fwatcher(c, runner, builder)
 	} else {
@@ -53,7 +56,7 @@ func mainAction(c *cli.Context) error {
 	return err
 }
 
-func build(builder internal.Builder, runner internal.Runner, logger *log.Logger, isDebug bool) {
+func start(builder internal.Builder, runner internal.Runner, logger *log.Logger, isDebug bool) {
 	logInfo("Building...")
 
 	err := builder.Build()

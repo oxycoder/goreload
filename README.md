@@ -30,18 +30,19 @@ goreload --bin ./bin/myproject
 ## Options
 
 ```txt
-   --bin value, -b value         string      Path to generated binary file (default: "./bin/goreload")
+   --bin value, -b value         string      Path to generated binary file (default: "./bin/gorl")
    --path value, -t value        string      Path to watch files from (default: ".")
-   --ext value, -e value         string      File extention to watch changes, seperate by `|` character, default `go|html`
+   --ext value, -e value         string      File extention to watch changes, seperate by `|` character, default `.go|.html`
    --excludeDir value, -x value  []string    Relative directories to exclude
-   --buildArgs value             string      Additional go build arguments
-   --runArgs value               string      Additional run arguments
+   --buildArgs value             string      Arguments passed to `go build` command
+   --runArgs value               string      Arguments passed when run program
    --logPrefix value             string      Setup custom log prefix
    --delay                       int         Delay build after detect files change, default value is 400
    --help, -h                    bool        show help
    --version, -v                 string      print the version
    --showWatchedFiles, -swf      bool        Print watched files
    --debug, -dlv                 bool        Enable debug
+   --dlvAddr                     string      dlv server address, default :2345
    --watcher                     string      Watcher, default `fsnotify`, available: `fsnotify` and `bwatcher`
 ```
 

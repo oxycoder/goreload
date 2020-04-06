@@ -26,16 +26,18 @@ type runner struct {
 	command   *exec.Cmd
 	dbg       *exec.Cmd
 	debug     bool
+	dlvAddr   string
 	starttime time.Time
 }
 
 // NewRunner creates new runner
-func NewRunner(bin string, isDebug bool, args ...string) Runner {
+func NewRunner(bin string, isDebug bool, addr string, args ...string) Runner {
 	return &runner{
 		bin:       bin,
 		args:      args,
 		writer:    ioutil.Discard,
 		debug:     isDebug,
+		dlvAddr:   addr,
 		starttime: time.Now(),
 	}
 }
@@ -152,7 +154,7 @@ func (r *runner) AttachDebugger() (*exec.Cmd, error) {
 		"attach",
 		// "--continue", // Do not pause process on attach
 		"--accept-multiclient",
-		"--listen=:2345",
+		"--listen="+r.dlvAddr,
 		"--headless=true",
 		"--api-version=2",
 		strconv.Itoa(r.command.Process.Pid),

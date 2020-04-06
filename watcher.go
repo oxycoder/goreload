@@ -60,7 +60,7 @@ func kwatch(c *cli.Context, runner internal.Runner, builder internal.Builder) {
 			case <-time.After(time.Millisecond * 200):
 				if haveModified {
 					runner.Kill()
-					build(builder, runner, logger, c.Bool("debug"))
+					start(builder, runner, logger, c.Bool("debug"))
 					haveModified = false
 				}
 			}
@@ -107,7 +107,7 @@ func fwatcher(c *cli.Context, runner internal.Runner, builder internal.Builder) 
 				default:
 					logInfo("modified file: %s", event.Name)
 					runner.Kill()
-					build(builder, runner, logger, c.Bool("debug"))
+					start(builder, runner, logger, c.Bool("debug"))
 				}
 			}
 

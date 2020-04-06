@@ -62,8 +62,13 @@ func cliApp() *cli.App {
 		&cli.BoolFlag{
 			Name:    "debug",
 			Aliases: []string{"dlv"},
-			Usage:   "Start with debugger attached, require dlv installed, default address is :2345",
+			Usage:   "Start with debugger attached, require dlv installed",
 			Value:   false,
+		},
+		&cli.StringFlag{
+			Name:  "dlvAddress",
+			Usage: "dlv debug port",
+			Value: ":2345",
 		},
 		&cli.StringFlag{
 			Name:  "watcher",
