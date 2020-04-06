@@ -87,12 +87,14 @@ func cliApp() *cli.App {
 }
 
 func verAction(c *cli.Context) error {
-	logInfo(`
-
- --------------------------------------------- 
-|				version: 1.1.2				  |
- --------------------------------------------- 
-
-	`)
+	version()
 	return nil
+}
+
+func version() {
+	logInfo(`
+---------------------
+     GoReload
+🎉version: 1.1.2 🎉
+---------------------`)
 }

@@ -17,6 +17,7 @@ import (
 var logger = log.New(os.Stdout, "[💕Go] ", 0)
 
 func main() {
+	version()
 	app := cliApp()
 	app.Run(os.Args)
 }
