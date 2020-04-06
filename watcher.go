@@ -36,7 +36,7 @@ func kwatch(c *cli.Context, runner internal.Runner, builder internal.Builder) {
 			fmt.Printf("%s: %s\n", path, f.Name())
 		}
 	}
-
+	logWarn("------>")
 	go func() {
 		haveModified := false
 		for {
@@ -84,9 +84,12 @@ func fwatcher(c *cli.Context, runner internal.Runner, builder internal.Builder) 
 		logger.Fatal(err)
 	}
 	for _, dir := range dirs {
-		logInfo("watching dir: %s", dir)
+		if c.Bool("showWatchedFiles") {
+			logInfo("watching dir: %s", dir)
+		}
 		w.Add(dir)
 	}
+	logWarn("------>")
 	exts := strings.Split(c.String("ext"), "|")
 	haveModified := false
 	for {

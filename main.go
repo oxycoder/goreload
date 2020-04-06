@@ -57,7 +57,7 @@ func mainAction(c *cli.Context) error {
 }
 
 func start(builder internal.Builder, runner internal.Runner, logger *log.Logger, isDebug bool) {
-	logInfo("Building...")
+	logWarn("Building...")
 
 	err := builder.Build()
 	if err != nil {
