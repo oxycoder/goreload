@@ -98,11 +98,3 @@ func cliApp() *cli.App {
 func verAction(c *cli.Context) error {
 	return nil
 }
-
-func version() {
-	logInfo(`
----------------------
-     GoReload
-🎉version: 1.1.7 🎉
----------------------`)
-}

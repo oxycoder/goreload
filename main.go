@@ -16,6 +16,8 @@ import (
 
 var logger = log.New(os.Stdout, "[💕Go] ", 0)
 
+const ver = "v1.1.8"
+
 func main() {
 	version()
 	app := cliApp()
@@ -99,4 +101,12 @@ func shutdown(runner internal.Runner) {
 		}
 		os.Exit(1)
 	}()
+}
+
+func version() {
+	logInfo(`
+---------------------
+     GoReload
+🎉 version: %s 🎉
+---------------------`, ver)
 }

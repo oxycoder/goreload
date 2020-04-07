@@ -135,13 +135,6 @@ func (r *runner) AttachDebugger() (*exec.Cmd, error) {
 	if err != nil {
 		return r.dbg, err
 	}
-
-	r.dlvWriter, err = r.dbg.StdinPipe()
-	if err != nil {
-		return r.dbg, err
-	}
-	defer r.dlvWriter.Write([]byte("continue"))
-
 	err = r.dbg.Start()
 	if err != nil {
 		return r.dbg, err
@@ -152,5 +145,8 @@ func (r *runner) AttachDebugger() (*exec.Cmd, error) {
 	go io.Copy(r.writer, stdout)
 	go io.Copy(r.writer, stderr)
 	go r.dbg.Wait()
+
+	// hack --continue for attach
+	exec.Command("bash", "-c", "dlv connect "+r.dlvAddr+" --init <(printf continue)").Output()
 	return r.dbg, err
 }
