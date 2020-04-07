@@ -16,7 +16,7 @@ import (
 
 var logger = log.New(os.Stdout, "[💕Go] ", 0)
 
-const ver = "v1.1.8"
+const ver = "v1.1.9"
 
 func main() {
 	version()
