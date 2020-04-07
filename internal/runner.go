@@ -17,6 +17,7 @@ type Runner interface {
 	SetWriter(io.Writer)
 	Kill() error
 	AttachDebugger() (*exec.Cmd, error)
+	dlvConnectAndContinue()
 }
 
 type runner struct {
@@ -147,6 +148,26 @@ func (r *runner) AttachDebugger() (*exec.Cmd, error) {
 	go r.dbg.Wait()
 
 	// hack --continue for attach
-	exec.Command("bash", "-c", "dlv connect "+r.dlvAddr+" --init <(printf continue)").Output()
+	r.dlvConnectAndContinue()
+
 	return r.dbg, err
+}
+
+// dlvConnectAndContinue connect to dlv server and print continue
+func (r *runner) dlvConnectAndContinue() {
+	cmd := exec.Command("dlv", "connect", r.dlvAddr, "--init", "<(printf continue)")
+	if err := cmd.Start(); err != nil {
+		r.log.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+	select {
+	case <-time.After(3 * time.Second):
+		if err := cmd.Process.Kill(); err != nil {
+			r.log.Fatalf("Failed to kill dlv connect, err: %v", err)
+		}
+	case <-done:
+	}
 }
