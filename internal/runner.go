@@ -3,9 +3,9 @@ package internal
 import (
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
-	"runtime"
 	"strconv"
 	"time"
 )
@@ -27,11 +27,13 @@ type runner struct {
 	dbg       *exec.Cmd
 	debug     bool
 	dlvAddr   string
+	dlvWriter io.WriteCloser
 	starttime time.Time
+	log       *log.Logger
 }
 
 // NewRunner creates new runner
-func NewRunner(bin string, isDebug bool, addr string, args ...string) Runner {
+func NewRunner(bin string, isDebug bool, addr string, log *log.Logger, args ...string) Runner {
 	return &runner{
 		bin:       bin,
 		args:      args,
@@ -39,6 +41,7 @@ func NewRunner(bin string, isDebug bool, addr string, args ...string) Runner {
 		debug:     isDebug,
 		dlvAddr:   addr,
 		starttime: time.Now(),
+		log:       log,
 	}
 }
 
@@ -55,60 +58,24 @@ func (r *runner) Run() (*exec.Cmd, error) {
 	return r.cmd, nil
 }
 
+func (r *runner) Kill() error {
+	if r.debug && r.dbg != nil {
+		r.killDbg()
+		r.dbg = nil
+	}
+	if r.cmd != nil {
+		r.killApp()
+		r.cmd = nil
+	}
+	return nil
+}
+
 func (r *runner) Info() (os.FileInfo, error) {
 	return os.Stat(r.bin)
 }
 
 func (r *runner) SetWriter(writer io.Writer) {
 	r.writer = writer
-}
-
-func (r *runner) Kill() error {
-	if r.cmd == nil {
-		return nil
-	}
-	if r.cmd.Process == nil {
-		return nil
-	}
-
-	done := make(chan error)
-	go func() {
-		r.cmd.Wait()
-		if r.debug {
-			r.dbg.Wait()
-		}
-		close(done)
-	}()
-
-	if r.debug {
-		err := kill(r.dbg)
-		if err != nil {
-			return err
-		}
-	}
-	// trying a "soft" kill first
-	if runtime.GOOS == "windows" {
-		if err := r.cmd.Process.Kill(); err != nil {
-			return err
-		}
-	} else {
-		err := r.cmd.Process.Signal(os.Interrupt)
-		if err != nil {
-			return err
-		}
-	}
-
-	// wait for our process to die before we return or hard kill after 3 sec
-	select {
-	case <-time.After(3 * time.Second):
-		if err := kill(r.cmd); err != nil {
-			return err
-		}
-	case <-done:
-	}
-	r.cmd = nil
-
-	return nil
 }
 
 func (r *runner) Exited() bool {
@@ -168,6 +135,12 @@ func (r *runner) AttachDebugger() (*exec.Cmd, error) {
 	if err != nil {
 		return r.dbg, err
 	}
+
+	r.dlvWriter, err = r.dbg.StdinPipe()
+	if err != nil {
+		return r.dbg, err
+	}
+	defer r.dlvWriter.Write([]byte("continue"))
 
 	err = r.dbg.Start()
 	if err != nil {

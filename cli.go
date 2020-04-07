@@ -68,7 +68,7 @@ func cliApp() *cli.App {
 			Value:   false,
 		},
 		&cli.StringFlag{
-			Name:    "dlvAddress",
+			Name:    "dlvAddr",
 			Aliases: []string{"da"},
 			Usage:   "dlv debug port",
 			Value:   ":2345",
@@ -96,7 +96,6 @@ func cliApp() *cli.App {
 }
 
 func verAction(c *cli.Context) error {
-	version()
 	return nil
 }
 
@@ -104,6 +103,6 @@ func version() {
 	logInfo(`
 ---------------------
      GoReload
-🎉version: 1.1.5 🎉
+🎉version: 1.1.7 🎉
 ---------------------`)
 }

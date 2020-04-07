@@ -36,12 +36,15 @@ func mainAction(c *cli.Context) error {
 	if err != nil {
 		logger.Fatal(err)
 	}
+	if c.Bool("debug") {
+		logInfo("dlv enabled on address %s", c.String("dlvAddr"))
+	}
 	builder := internal.NewBuilder(".", c.String("bin"), c.Bool("debug"), buildArgs)
 	runArgs, err := shellwords.Parse(c.String("runArgs"))
 	if err != nil {
 		logger.Fatal(err)
 	}
-	runner := internal.NewRunner(c.String("bin"), c.Bool("debug"), c.String("dlvAddr"), runArgs...)
+	runner := internal.NewRunner(c.String("bin"), c.Bool("debug"), c.String("dlvAddr"), logger, runArgs...)
 	runner.SetWriter(os.Stdout)
 
 	shutdown(runner)

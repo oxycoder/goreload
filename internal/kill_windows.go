@@ -5,7 +5,12 @@ import (
 	"strconv"
 )
 
-func kill(cmd *exec.Cmd) error {
-	kill := exec.Command("TASKKILL", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid))
+func (r *runner) killDbg() error {
+	kill := exec.Command("TASKKILL", "/T", "/F", "/PID", strconv.Itoa(r.dbg.Process.Pid))
+	return kill.Run()
+}
+
+func (r *runner) killApp() error {
+	kill := exec.Command("TASKKILL", "/T", "/F", "/PID", strconv.Itoa(r.cmd.Process.Pid))
 	return kill.Run()
 }
