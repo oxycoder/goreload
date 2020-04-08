@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"os/exec"
 	"syscall"
 )
 
@@ -19,15 +20,16 @@ func (r *runner) killDbg() error {
 }
 
 func (r *runner) killApp() error {
+	if r.debug {
+		// ensure child process is killed
+		exec.Command("bash", "-c", "pkill "+r.bin).Output()
+	}
 	pid := r.cmd.Process.Pid
-	err := r.cmd.Process.Kill()
-	if err == nil {
+	if err := r.cmd.Process.Kill(); err == nil {
 		r.log.Println("Killing app pid=", pid)
 		return err
 	}
-	r.log.Println("Soft kill err ", err.Error())
 	r.log.Println("Try kill app with SIGKILL pid=", pid)
-	err = syscall.Kill(-pid, syscall.SIGKILL)
-	r.log.Println(err)
+	err := syscall.Kill(-pid, syscall.SIGKILL)
 	return err
 }

@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -16,8 +16,6 @@ type Runner interface {
 	Info() (os.FileInfo, error)
 	SetWriter(io.Writer)
 	Kill() error
-	AttachDebugger() (*exec.Cmd, error)
-	dlvConnectAndContinue()
 }
 
 type runner struct {
@@ -60,10 +58,10 @@ func (r *runner) Run() (*exec.Cmd, error) {
 }
 
 func (r *runner) Kill() error {
-	if r.debug && r.dbg != nil {
-		r.killDbg()
-		r.dbg = nil
-	}
+	// if r.debug && r.dbg != nil {
+	// 	r.killDbg()
+	// 	r.dbg = nil
+	// }
 	if r.cmd != nil {
 		r.killApp()
 		r.cmd = nil
@@ -85,6 +83,21 @@ func (r *runner) Exited() bool {
 
 func (r *runner) runBin() error {
 	r.cmd = exec.Command(r.bin, r.args...)
+	if r.debug {
+		args := []string{
+			"exec",
+			"--continue",
+			"--accept-multiclient",
+			"--listen=" + r.dlvAddr,
+			"--headless=true",
+			"--api-version=2",
+			r.bin,
+			"--",
+		}
+		args = append(args, r.args...)
+		r.cmd = exec.Command("dlv", args...)
+		r.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	}
 	stdout, err := r.cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -114,60 +127,4 @@ func (r *runner) needsRefresh() bool {
 		return false
 	}
 	return info.ModTime().After(r.starttime)
-}
-
-func (r *runner) AttachDebugger() (*exec.Cmd, error) {
-	r.dbg = exec.Command(
-		"dlv",
-		"attach",
-		// "--continue", // Do not pause process on attach
-		"--accept-multiclient",
-		"--listen="+r.dlvAddr,
-		"--headless=true",
-		"--api-version=2",
-		strconv.Itoa(r.cmd.Process.Pid),
-	)
-
-	stdout, err := r.dbg.StdoutPipe()
-	if err != nil {
-		return r.dbg, err
-	}
-	stderr, err := r.dbg.StderrPipe()
-	if err != nil {
-		return r.dbg, err
-	}
-	err = r.dbg.Start()
-	if err != nil {
-		return r.dbg, err
-	}
-
-	r.starttime = time.Now()
-
-	go io.Copy(r.writer, stdout)
-	go io.Copy(r.writer, stderr)
-	go r.dbg.Wait()
-
-	// hack --continue for attach
-	r.dlvConnectAndContinue()
-
-	return r.dbg, err
-}
-
-// dlvConnectAndContinue connect to dlv server and print continue
-func (r *runner) dlvConnectAndContinue() {
-	cmd := exec.Command("dlv", "connect", r.dlvAddr, "--init", "<(printf continue)")
-	if err := cmd.Start(); err != nil {
-		r.log.Fatal(err)
-	}
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
-	select {
-	case <-time.After(3 * time.Second):
-		if err := cmd.Process.Kill(); err != nil {
-			r.log.Fatalf("Failed to kill dlv connect, err: %v", err)
-		}
-	case <-done:
-	}
 }

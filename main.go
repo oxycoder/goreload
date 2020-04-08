@@ -70,20 +70,20 @@ func start(builder internal.Builder, runner internal.Runner, logger *log.Logger,
 		fmt.Println(builder.Errors())
 	} else {
 		logSuccess("Build finished")
-		p, err := runner.Run()
+		_, err := runner.Run()
 		if err != nil {
-			logError(err.Error())
+			logError("Run failed\n%v", err)
 			return
 		}
 
-		logDebug(`Process started with (pid=%d)`, p.Process.Pid)
-		if isDebug {
-			dlv, err := runner.AttachDebugger()
-			if err != nil {
-				logger.Fatal(err)
-			}
-			logDebug("Dlv (pid=%d) attached to pid=%d", dlv.Process.Pid, p.Process.Pid)
-		}
+		// logDebug(`Process started with (pid=%d)`, p.Process.Pid)
+		// if isDebug {
+		// 	dlv, err := runner.AttachDebugger()
+		// 	if err != nil {
+		// 		logger.Fatal(err)
+		// 	}
+		// 	logDebug("Dlv (pid=%d) attached to pid=%d", dlv.Process.Pid, p.Process.Pid)
+		// }
 	}
 
 	time.Sleep(100 * time.Millisecond)
